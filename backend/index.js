@@ -1,12 +1,15 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const cron = require('node-cron');
 
 const { parseStrictTransaction } = require('./parser');
 const { calculateFeatures } = require('./features');
 const { calculateScore, classifyRisk, generateInsights, generateSummary } = require('./scoring');
 const { saveTransactions, saveScore, getHistory, clearAllData, pruneJunk } = require('./database');
-const { getLoans } = require('./loans');
+const { getLoans, bustLoanCache } = require('./loans');
+const { runDiscovery } = require('./loan_discovery');
 
 const app = express();
 const PORT = 5000;
@@ -139,6 +142,30 @@ app.get('/api/history', async (req, res) => {
     }
 });
 
+// ──────────────────────────────────────────────────────────────
+// Manual trigger: GET /api/loans/discover  (for testing)
+// ──────────────────────────────────────────────────────────────
+app.get('/api/loans/discover', async (req, res) => {
+    console.log('🔍 Manual loan discovery triggered via API...');
+    res.json({ status: 'started', message: 'Discovery run started. Check server logs for results.' });
+    
+    // Run async so response is instant
+    runDiscovery().then(() => bustLoanCache()).catch(console.error);
+});
+
+// ──────────────────────────────────────────────────────────────
+// Scheduled Discovery: Every Monday at 02:00 AM
+// Searches for new Indian fintech loan products automatically.
+// ──────────────────────────────────────────────────────────────
+cron.schedule('0 2 * * 1', async () => {
+    await runDiscovery();
+    bustLoanCache(); // Force cache refresh so next sync picks up new products
+}, { timezone: 'Asia/Kolkata' });
+
 app.listen(PORT, () => {
     console.log(`\n🚀 SMS Fintech Intelligence Engine running on http://localhost:${PORT}`);
+    console.log(`🏦 Loan Discovery Engine: Scheduled every Monday at 02:00 AM IST`);
+    if (!process.env.SERPER_API_KEY || !process.env.GEMINI_API_KEY) {
+        console.log(`⚠️  Add SERPER_API_KEY and GEMINI_API_KEY to .env to enable auto-discovery`);
+    }
 });

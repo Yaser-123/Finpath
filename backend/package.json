@@ -7,9 +7,13 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.103.0",
+    "axios": "^1.15.0",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "dotenv": "^17.4.1",
+    "express": "^4.19.2",
+    "node-cron": "^4.2.1"
   }
 }

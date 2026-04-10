@@ -1,135 +1,78 @@
 /**
- * Loan Recommendation Engine — Real Indian Fintech Products
- * Based on actual NBFC/Fintech partnerships and RBI-registered lenders.
- * Score thresholds derived from industry-standard CIBIL/Experian equivalents.
+ * Loan Recommendation Engine — Dynamic DB-backed version
+ * Products are stored in Supabase loan_products table.
+ * Cached for 5 minutes to avoid hammering the DB on every sync.
  */
 
-const loanProducts = [
-    // Tier 1 — Entry level (score 450+)
-    {
-        id: "L1",
-        name: "KreditBee Instant Loan",
-        provider: "Krazybee Services Pvt. Ltd. (NBFC)",
-        minScore: 450,
-        maxAmount: "₹2,00,000",
-        interestRate: "16% – 29.95% p.a.",
-        tenure: "3 – 24 months",
-        link: "https://www.kreditbee.in/",
-        tag: "Instant Disbursal",
-        description: "Instant personal loan for salaried and self-employed with minimal documentation."
-    },
-    {
-        id: "L2",
-        name: "MoneyView Personal Loan",
-        provider: "Whizdm Innovations Pvt. Ltd.",
-        minScore: 500,
-        maxAmount: "₹5,00,000",
-        interestRate: "1.33% per month onwards",
-        tenure: "3 – 60 months",
-        link: "https://moneyview.in/",
-        tag: "Low Credit Friendly",
-        description: "Flexible personal loans for individuals with moderate credit scores using alternative data."
-    },
+const { createClient } = require('@supabase/supabase-js');
 
-    // Tier 2 — Mid-range (score 600+)
-    {
-        id: "L3",
-        name: "Navi Instant Personal Loan",
-        provider: "Navi Finserv Ltd. (RBI Registered NBFC)",
-        minScore: 600,
-        maxAmount: "₹20,00,000",
-        interestRate: "9.9% p.a. onwards",
-        tenure: "3 – 84 months",
-        link: "https://navi.com/personal-loan/",
-        tag: "App-Based",
-        description: "100% digital loan process with competitive interest rates and instant approval."
-    },
-    {
-        id: "L4",
-        name: "Cashe Business Loan",
-        provider: "Bhanix Finance & Investment Ltd.",
-        minScore: 620,
-        maxAmount: "₹4,00,000",
-        interestRate: "2.75% per month",
-        tenure: "3 – 18 months",
-        link: "https://www.cashe.co.in/",
-        tag: "For Self-Employed",
-        description: "Short-tenure credit for small business owners and self-employed professionals."
-    },
+const SUPABASE_URL = 'https://iqimfntocrsjgsfvrcbr.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_xj3-9XHFo4FvnI04Jx4vXQ_b0STQD6B';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Tier 3 — Good credit (score 700+)
-    {
-        id: "L5",
-        name: "Bajaj Finserv Personal Loan",
-        provider: "Bajaj Finance Limited",
-        minScore: 700,
-        maxAmount: "₹40,00,000",
-        interestRate: "11% p.a. onwards",
-        tenure: "12 – 96 months",
-        link: "https://www.bajajfinserv.in/personal-loan",
-        tag: "Top Pick",
-        description: "One of India's largest NBFCs. Pre-approved offers, same-day disbursal for eligible customers."
-    },
-    {
-        id: "L6",
-        name: "HDFC Bank SmartLoan",
-        provider: "HDFC Bank Ltd.",
-        minScore: 720,
-        maxAmount: "₹75,00,000",
-        interestRate: "10.85% p.a. onwards",
-        tenure: "12 – 60 months",
-        link: "https://www.hdfcbank.com/personal/borrow/popular-loans/personal-loan",
-        tag: "Bank Backed",
-        description: "Paperless pre-approved personal loans for existing HDFC customers with strong profiles."
-    },
+// 5-minute in-memory cache
+let loanCache = null;
+let cacheExpiry = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
-    // Tier 4 — Premium (score 750+)
-    {
-        id: "L7",
-        name: "Axis Bank Credit Line",
-        provider: "Axis Bank Ltd.",
-        minScore: 750,
-        maxAmount: "₹1,50,00,000",
-        interestRate: "10.49% p.a. onwards",
-        tenure: "12 – 84 months",
-        link: "https://www.axisbank.com/retail/loans/personal-loan",
-        tag: "Premium",
-        description: "High-value credit for premium borrowers with low risk profiles and strong credit history."
-    },
-    {
-        id: "L8",
-        name: "ICICI Bank Insta Loan",
-        provider: "ICICI Bank Ltd.",
-        minScore: 780,
-        maxAmount: "₹50,00,000",
-        interestRate: "10.75% p.a. onwards",
-        tenure: "12 – 72 months",
-        link: "https://www.icicibank.com/personal-banking/loans/personal-loan",
-        tag: "Instant Approval",
-        description: "Pre-approved offers for top-scoring applicants. Approved and disbursed within hours."
+async function fetchLoanProducts() {
+    const now = Date.now();
+    if (loanCache && now < cacheExpiry) return loanCache;
+
+    const { data, error } = await supabase
+        .from('loan_products')
+        .select('*')
+        .eq('active', true)
+        .order('min_score', { ascending: true });
+
+    if (error) {
+        console.error('Failed to fetch loan products from DB:', error.message);
+        return loanCache || []; // Return stale cache if available
     }
-];
+
+    loanCache = data || [];
+    cacheExpiry = now + CACHE_TTL_MS;
+    console.log(`🏦 Loan cache refreshed: ${loanCache.length} active products loaded.`);
+    return loanCache;
+}
 
 /**
- * Returns all products with eligibility state, sorted by eligibility then score.
- * Eligible products are shown first, locked ones show how many points are needed.
+ * Returns all active loan products with eligibility state for a given score.
+ * Eligible products are shown first.
  */
-function getLoans(score) {
-    const scored = loanProducts.map(loan => {
-        const isEligible = score >= loan.minScore;
+async function getLoans(score) {
+    const products = await fetchLoanProducts();
+
+    const scored = products.map(loan => {
+        const isEligible = score >= loan.min_score;
         return {
-            ...loan,
-            eligible: isEligible,
-            pointsToUnlock: isEligible ? 0 : (loan.minScore - score)
+            id:           loan.id,
+            name:         loan.name,
+            provider:     loan.provider,
+            minScore:     loan.min_score,
+            maxAmount:    loan.max_amount,
+            interestRate: loan.interest_rate,
+            tenure:       loan.tenure,
+            link:         loan.link,
+            tag:          loan.tag,
+            description:  loan.description,
+            eligible:     isEligible,
+            pointsToUnlock: isEligible ? 0 : (loan.min_score - score)
         };
     });
 
-    // Sort: eligible first, then by minScore ascending
+    // Eligible first, then unlockable sorted by fewest points needed
     return scored.sort((a, b) => {
         if (a.eligible && !b.eligible) return -1;
         if (!a.eligible && b.eligible) return 1;
-        return a.minScore - b.minScore;
+        return a.pointsToUnlock - b.pointsToUnlock;
     });
 }
 
-module.exports = { getLoans };
+/** Bust the cache (call after a discovery run adds new products) */
+function bustLoanCache() {
+    loanCache = null;
+    cacheExpiry = 0;
+}
+
+module.exports = { getLoans, bustLoanCache };
