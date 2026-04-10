@@ -6,18 +6,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -47,11 +45,11 @@ fun SmsScreen(viewModel: SmsViewModel) {
                 contentColor = Color.White
             )
         }
-    ) { padding ->
+    ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(innerPadding)
                 .background(Color(0xFFF8F9FA))
         ) {
             when (val state = uiState) {
@@ -247,7 +245,7 @@ fun BusinessMetricsSection(features: BusinessFeatures?) {
 }
 
 @Composable
-fun MetricCard(label: String, value: String, modifier: Modifier, bgColor: Color, textColor: Color) {
+fun RowScope.MetricCard(label: String, value: String, modifier: Modifier, bgColor: Color, textColor: Color) {
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = bgColor)
@@ -297,9 +295,9 @@ fun TopMerchantsSection(merchants: List<String>) {
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                merchants.forEachIndexed { index, name ->
+                merchants.forEachIndexed { _, name ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFFC107))
+                        Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF1A237E))
                         Text(name, modifier = Modifier.padding(start = 8.dp, vertical = 4.dp))
                     }
                 }
