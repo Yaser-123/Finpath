@@ -42,37 +42,40 @@ app.post('/api/sms', async (req, res) => {
             raw_message: item.raw 
         }));
 
-        // 3. PERSIST - Start the save in the background
+        // 3. PERSIST (Await background save)
         if (currentTransactions.length > 0) {
             await saveTransactions(currentTransactions);
         }
 
-        // 4. IN-MEMORY MERGER (Definitive Resolution)
-        // Fetch history but manually combine it with the current batch 
-        // to bypass any database consistency/latency issues.
+        // 4. IN-MEMORY MERGER
         const historyData = await getHistory();
         const existingHistory = historyData.transactions || [];
         
-        // Remove duplicates from existing history if they are in the current batch
         const currentRefs = new Set(currentTransactions.map(t => t.reference_number));
         const mergedHistory = [
             ...currentTransactions,
             ...existingHistory.filter(t => !currentRefs.has(t.reference_number))
         ];
 
-        console.log(`📡 Intelligence Engine: Scoring merged set of ${mergedHistory.length} unique transactions.`);
-
         // 5. Calculate Intelligence (Scoring)
         const features = calculateFeatures(mergedHistory);
         const scoreResult = calculateScore(features);
-        const score = scoreResult.total;
-        const breakdown = scoreResult.breakdown;
         
+        // STRICT INTEGER CASTING FOR ANDROID GSON
+        const b = scoreResult.breakdown;
+        const breakdown = {
+            base: parseInt(b.base) || 300,
+            income: parseInt(b.income) || 0,
+            activity: parseInt(b.activity) || 0,
+            stability: parseInt(b.stability) || 0
+        };
+
+        const score = parseInt(scoreResult.total) || 300;
         const risk = classifyRisk(score);
         const insights = generateInsights(features);
         const summary = generateSummary(features, score);
 
-        // Trend Analysis
+        // Trend
         let scoreChange = 0;
         if (historyData.latestScores.length > 0) {
             scoreChange = score - historyData.latestScores[0].score;
@@ -81,7 +84,13 @@ app.post('/api/sms', async (req, res) => {
         // 6. Save performance history
         await saveScore({ score, risk, features, breakdown });
 
-        // 7. Response (Fully Hydrated from Merged Reality)
+        // --- TRUTH LOGS ---
+        console.log(`\n📡 Sync Received: ${currentTransactions.length} messages.`);
+        console.log(`📊 Merged History: ${mergedHistory.length} unique tx.`);
+        console.log(`🎯 Score Calculated: ${score} (${risk})`);
+        console.log(`✅ JSON_DEBUG_SENT:`, JSON.stringify({ breakdown, score, risk }));
+
+        // 7. Response
         res.json({
             status: 'success',
             score: score,
@@ -111,10 +120,15 @@ app.get('/api/history', async (req, res) => {
         let dynamicLoans = [];
 
         if (latestScore) {
-            // Recalculate features for the historical set
             const features = calculateFeatures(transactions);
             const scoreResult = calculateScore(features);
-            dynamicBreakdown = scoreResult.breakdown;
+            const b = scoreResult.breakdown;
+            dynamicBreakdown = {
+                base: parseInt(b.base) || 300,
+                income: parseInt(b.income) || 0,
+                activity: parseInt(b.activity) || 0,
+                stability: parseInt(b.stability) || 0
+            };
             dynamicLoans = getLoans(latestScore.score);
         }
 

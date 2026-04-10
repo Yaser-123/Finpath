@@ -80,12 +80,28 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
 
                 val syncResult = repository.syncSms(messages)
                 syncResult.onSuccess { profile ->
-                    // Re-fetch history for list aggregation, but KEEP the sync profile as source of truth
+                    // --- TRUTH LOGS ---
+                    android.util.Log.d("SMS_DEBUG", "Received Profile: Score=${profile.score}, Breakdown=${profile.breakdown}")
+                    
+                    // Re-fetch history for list aggregation
                     val historyResult = repository.getHistory()
                     historyResult.onSuccess { history ->
-                        // Final Merge: Take history transactions but KEEP the sync profile 
-                        // as it has the absolute fresher breakdown points.
-                        _uiState.value = UiState.Success(profile, history.transactions)
+                        
+                        // --- FAILSAFE BREAKDOWN ---
+                        // If the server sent 0s but we have real data, calculate local fallback
+                        var finalBreakdown = profile.breakdown
+                        if (finalBreakdown.income == 0 && profile.features.totalCredit > 0) {
+                            android.util.Log.w("SMS_DEBUG", "Triggering Local Failsafe Breakdown...")
+                            finalBreakdown = finalBreakdown.copy(
+                                income = (Math.min(profile.features.totalCredit / 15000.0, 1.0) * 250).toInt(),
+                                activity = (Math.min(history.transactions.size / 15.0, 1.0) * 150).toInt(),
+                                base = 300
+                            )
+                        }
+
+                        val correctedProfile = profile.copy(breakdown = finalBreakdown)
+                        _uiState.value = UiState.Success(correctedProfile, history.transactions)
+                        
                     }.onFailure {
                         _uiState.value = UiState.Success(profile, emptyList())
                     }
