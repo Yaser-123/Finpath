@@ -24,46 +24,46 @@ app.post('/api/sms', async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Invalid request body' });
         }
         
-        // --- STEP 1: CLEANUP ---
-        // Purge NULL/0 junk before processing
+        // 1. Cleanup Junk
         await pruneJunk();
 
-        // --- STEP 2: PARSE & FILTER ---
+        // 2. Parse Incoming Batch
         const parsedBatch = rawMessages
             .map(msg => ({
                 raw: msg.body,
                 sender: msg.sender,
                 date: msg.date,
-                parsed: parseStrictTransaction({
-                    body: msg.body,
-                    sender: msg.sender,
-                    date: msg.date
-                })
+                parsed: parseStrictTransaction({ body: msg.body, sender: msg.sender, date: msg.date })
             }))
             .filter(item => item.parsed !== null);
 
-        console.log(`📡 Sync Received: ${parsedBatch.length} BOI transactions found.`);
-
-        const finalTransactions = parsedBatch.map(item => ({
+        const currentTransactions = parsedBatch.map(item => ({
             ...item.parsed,
             raw_message: item.raw 
         }));
 
-        // --- STEP 3: PERSIST DATA (CRITICAL: Save before scoring) ---
-        if (finalTransactions.length > 0) {
-            await saveTransactions(finalTransactions);
+        // 3. PERSIST - Start the save in the background
+        if (currentTransactions.length > 0) {
+            await saveTransactions(currentTransactions);
         }
 
-        // --- STEP 4: FETCH FULL HISTORY (Freshly updated) ---
+        // 4. IN-MEMORY MERGER (Definitive Resolution)
+        // Fetch history but manually combine it with the current batch 
+        // to bypass any database consistency/latency issues.
         const historyData = await getHistory();
-        const allTransactions = historyData.transactions;
-        const lastTwoScores = historyData.latestScores;
+        const existingHistory = historyData.transactions || [];
+        
+        // Remove duplicates from existing history if they are in the current batch
+        const currentRefs = new Set(currentTransactions.map(t => t.reference_number));
+        const mergedHistory = [
+            ...currentTransactions,
+            ...existingHistory.filter(t => !currentRefs.has(t.reference_number))
+        ];
 
-        console.log(`📊 Analysis Engine: Processing history of ${allTransactions.length} records.`);
+        console.log(`📡 Intelligence Engine: Scoring merged set of ${mergedHistory.length} unique transactions.`);
 
-        const features = calculateFeatures(allTransactions);
-
-        // --- STEP 5: INTELLIGENCE ENGINE (Explainable Scoring) ---
+        // 5. Calculate Intelligence (Scoring)
+        const features = calculateFeatures(mergedHistory);
         const scoreResult = calculateScore(features);
         const score = scoreResult.total;
         const breakdown = scoreResult.breakdown;
@@ -74,20 +74,20 @@ app.post('/api/sms', async (req, res) => {
 
         // Trend Analysis
         let scoreChange = 0;
-        if (lastTwoScores.length > 0) {
-            scoreChange = score - lastTwoScores[0].score;
+        if (historyData.latestScores.length > 0) {
+            scoreChange = score - historyData.latestScores[0].score;
         }
 
-        // --- STEP 6: SAVE FINAL PERFORMANCE ---
+        // 6. Save performance history
         await saveScore({ score, risk, features, breakdown });
 
-        // --- STEP 7: RESPONSE (Fully Hydrated) ---
+        // 7. Response (Fully Hydrated from Merged Reality)
         res.json({
             status: 'success',
             score: score,
             risk: risk,
             scoreChange: scoreChange,
-            breakdown: breakdown, // Calculated from fresh history!
+            breakdown: breakdown, 
             summary: summary,
             features: features,
             insights: insights,
@@ -111,7 +111,7 @@ app.get('/api/history', async (req, res) => {
         let dynamicLoans = [];
 
         if (latestScore) {
-            // Recalculate features and score to ensure breakdown parity
+            // Recalculate features for the historical set
             const features = calculateFeatures(transactions);
             const scoreResult = calculateScore(features);
             dynamicBreakdown = scoreResult.breakdown;

@@ -80,19 +80,12 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
 
                 val syncResult = repository.syncSms(messages)
                 syncResult.onSuccess { profile ->
-                    // Re-fetch everything to ensure UI is 100% in sync with the new calculated state
+                    // Re-fetch history for list aggregation, but KEEP the sync profile as source of truth
                     val historyResult = repository.getHistory()
                     historyResult.onSuccess { history ->
-                        val finalProfile = history.latestScore?.let {
-                            profile.copy(
-                                score = it.score,
-                                risk = it.risk,
-                                breakdown = it.breakdown ?: profile.breakdown,
-                                eligibleLoans = it.eligibleLoans ?: profile.eligibleLoans
-                            )
-                        } ?: profile
-                        
-                        _uiState.value = UiState.Success(finalProfile, history.transactions)
+                        // Final Merge: Take history transactions but KEEP the sync profile 
+                        // as it has the absolute fresher breakdown points.
+                        _uiState.value = UiState.Success(profile, history.transactions)
                     }.onFailure {
                         _uiState.value = UiState.Success(profile, emptyList())
                     }
