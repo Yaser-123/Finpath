@@ -7,6 +7,21 @@ const SUPABASE_KEY = 'sb_publishable_xj3-9XHFo4FvnI04Jx4vXQ_b0STQD6B';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /**
+ * NUCLEAR RESET: Wipes all transactions and scores
+ */
+async function clearAllData() {
+    console.log("🚀 Performing Nuclear Database Reset...");
+    
+    // Delete all scores
+    await supabase.from('scores').delete().neq('score', -1);
+    
+    // Delete all transactions
+    await supabase.from('transactions').delete().neq('amount', -1);
+    
+    console.log("✅ Database Wiped Clean.");
+}
+
+/**
  * Saves a batch of parsed transactions to Supabase.
  * Uses UPSERT with 'reference_number' conflict resolution for idempotency.
  * SQL: ALTER TABLE transactions ADD CONSTRAINT unique_ref UNIQUE (reference_number);
@@ -107,5 +122,6 @@ async function getHistory() {
 module.exports = {
     saveTransactions,
     saveScore,
-    getHistory
+    getHistory,
+    clearAllData
 };

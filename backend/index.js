@@ -6,7 +6,7 @@ const bodyParser = require('body-parser');
 const { parseStrictTransaction } = require('./parser');
 const { calculateFeatures } = require('./features');
 const { calculateScore, classifyRisk, generateInsights, generateSummary } = require('./scoring');
-const { saveTransactions, saveScore, getHistory } = require('./database');
+const { saveTransactions, saveScore, getHistory, clearAllData } = require('./database');
 const { getLoans } = require('./loans');
 
 const app = express();
@@ -24,6 +24,11 @@ app.post('/api/sms', async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Invalid request body' });
         }
         
+        
+        // --- STEP 0: NUCLEAR RESET ---
+        // Wipe all old data before sync to ensure a clean dashboard
+        await clearAllData();
+
         // 1. Parse incoming messages (STRICT VALIDATION PIPELINE)
         const parsedBatch = rawMessages
             .map(msg => ({
