@@ -13,6 +13,12 @@ import java.util.Locale
 
 class SmsRepository(private val context: Context) {
 
+    companion object {
+        // ▼▼▼ UPDATE THIS after Railway deployment ▼▼▼
+        private const val BASE_URL = "https://9092-152-59-199-148.ngrok-free.app/"
+        // ▲▲▲ Replace with your Railway URL, e.g.: "https://your-app.railway.app/"
+    }
+
     private val api: SmsApi by lazy {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -22,7 +28,7 @@ class SmsRepository(private val context: Context) {
             .build()
 
         Retrofit.Builder()
-            .baseUrl("https://9092-152-59-199-148.ngrok-free.app/") // Live ngrok link
+            .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .client(client)
             .build()
