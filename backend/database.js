@@ -79,9 +79,6 @@ async function saveTransactions(transactions) {
     if (error) console.error('Error saving transactions (UPSERT ref):', error.message);
 }
 
-    if (error) console.error('Error saving transactions (UPSERT ref):', error.message);
-}
-
 /**
  * Saves a calculated score and breakdown to Supabase.
  */
@@ -102,13 +99,14 @@ async function saveScore(scoreData) {
 
 /**
  * Fetches transaction history and latest score entries.
+ * Increased to 1000 for maximum score stability.
  */
 async function getHistory() {
     const { data: transactions, error: tError } = await supabase
         .from('transactions')
         .select('*')
         .order('date', { ascending: false })
-        .limit(50);
+        .limit(1000);
 
     const { data: scores, error: sError } = await supabase
         .from('scores')

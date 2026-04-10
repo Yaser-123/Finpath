@@ -97,18 +97,21 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
                 val result = repository.getHistory()
                 result.onSuccess { response ->
                     if (response.latestScore != null) {
-                        val scoreEntry = response.latestScore
-                        val profileFromHistory = CreditProfileResponse(
-                            status = "success",
-                            score = scoreEntry.score,
-                            risk = scoreEntry.risk,
-                            breakdown = scoreEntry.breakdown,
-                            features = scoreEntry.features,
-                            insights = scoreEntry.insights,
-                            summary = scoreEntry.summary,
-                            eligibleLoans = scoreEntry.eligibleLoans
+                        // Trust the server's pre-calculated intelligence fully now
+                        _uiState.value = UiState.Success(
+                            CreditProfileResponse(
+                                status = "success",
+                                score = response.latestScore.score,
+                                risk = response.latestScore.risk,
+                                breakdown = response.latestScore.breakdown,
+                                features = response.latestScore.features,
+                                insights = response.latestScore.insights,
+                                summary = response.latestScore.summary,
+                                scoreChange = response.scoreChange,
+                                eligibleLoans = response.latestScore.eligibleLoans
+                            ),
+                            response.transactions
                         )
-                        updateFailsafeState(profileFromHistory, response.transactions, response.scoreChange)
                     } else {
                         _uiState.value = UiState.Idle
                     }
@@ -137,9 +140,10 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
 
                 val syncResult = repository.syncSms(messages)
                 syncResult.onSuccess { profile ->
+                    // Re-fetch everything to ensure history list is synced with the new score
                     val historyResult = repository.getHistory()
                     historyResult.onSuccess { history ->
-                        updateFailsafeState(profile, history.transactions, history.scoreChange)
+                        _uiState.value = UiState.Success(profile, history.transactions)
                     }.onFailure {
                         _uiState.value = UiState.Success(profile, emptyList())
                     }

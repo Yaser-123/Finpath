@@ -123,7 +123,8 @@ app.get('/api/history', async (req, res) => {
             const features = calculateFeatures(transactions);
             const scoreResult = calculateScore(features);
             const b = scoreResult.breakdown;
-            const dynamicBreakdown = {
+            // FIXED: Removed 'const' to avoid shadowing outer let
+            dynamicBreakdown = {
                 base: parseInt(b.base) || 300,
                 income: parseInt(b.income) || 0,
                 activity: parseInt(b.activity) || 0,
