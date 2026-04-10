@@ -3,7 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 // Import modular components
-const { parseUPIMessage } = require('./parser');
+const { parseStrictTransaction } = require('./parser');
 const { calculateFeatures } = require('./features');
 const { calculateScore, classifyRisk, generateInsights, generateSummary } = require('./scoring');
 const { saveTransactions, saveScore, getHistory } = require('./database');
@@ -24,18 +24,30 @@ app.post('/api/sms', async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Invalid request body' });
         }
         
-        // 1. Parse incoming messages (Strict Filtering)
+        // 1. Parse incoming messages (STRICT VALIDATION PIPELINE)
         const parsedBatch = rawMessages
             .map(msg => ({
                 raw: msg.body,
                 sender: msg.sender,
                 date: msg.date,
-                parsed: parseUPIMessage(msg.body)
+                parsed: parseStrictTransaction({
+                    body: msg.body,
+                    sender: msg.sender,
+                    date: msg.date
+                })
             }))
             .filter(item => item.parsed !== null);
 
+        // Map to flat transaction objects for DB insertion
+        const finalTransactions = parsedBatch.map(item => ({
+            ...item.parsed,
+            raw_message: item.raw 
+        }));
+
         // 2. Save new transactions with de-duplication
-        await saveTransactions(parsedBatch);
+        if (finalTransactions.length > 0) {
+            await saveTransactions(finalTransactions);
+        }
 
         // 3. Fetch full history and previous points
         const historyData = await getHistory();

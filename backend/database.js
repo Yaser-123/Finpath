@@ -11,17 +11,15 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
  * Uses UPSERT with 'reference_number' conflict resolution for idempotency.
  * SQL: ALTER TABLE transactions ADD CONSTRAINT unique_ref UNIQUE (reference_number);
  */
-async function saveTransactions(messagesWithParsed) {
-    const rows = messagesWithParsed
-        .filter(item => item.parsed !== null)
-        .map(item => ({
-            amount: item.parsed.amount,
-            type: item.parsed.type,
-            merchant: item.parsed.merchant,
-            reference_number: item.parsed.referenceNumber, // NEW FIELD
-            date: new Date().toISOString(),
-            raw_message: item.raw
-        }));
+async function saveTransactions(transactions) {
+    const rows = transactions.map(item => ({
+        amount: item.amount,
+        type: item.type,
+        merchant: item.merchant,
+        reference_number: item.reference_number,
+        date: item.date,
+        raw_message: item.raw_message
+    }));
 
     if (rows.length === 0) return;
 
