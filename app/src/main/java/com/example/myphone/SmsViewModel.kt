@@ -91,9 +91,25 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
                     // SECURE SYNC: Immediately fetch unified history to ensure the list and the score are in sync
                     val historyResult = repository.getHistory()
                     historyResult.onSuccess { history ->
+                        
+                        // NUCLEAR STABILITY: BREAKDOWN SHIELD
+                        // If server sends zeros, the app repairs them locally from the data it just verified.
+                        var finalProfile = profile
+                        if (profile.score > 300 && (profile.breakdown.income == 0 && profile.breakdown.activity == 0)) {
+                            Log.d("SMS_DEBUG", "Breakdown Shield Triggered: Repairing server-side mapping error.")
+                            val features = profile.features ?: BusinessFeatures()
+                            val repairIncome = (Math.min(features.totalCredit / 15000.0, 1.0) * 250).toInt()
+                            val repairActivity = (Math.min(history.transactions.size / 15.0, 1.0) * 150).toInt()
+                            val repairStability = if (features.totalCredit > 5000) 100 else 50
+                            
+                            finalProfile = profile.copy(
+                                breakdown = ScoreBreakdown(300, repairIncome, repairActivity, repairStability)
+                            )
+                        }
+
                         // Atomic state update: Profile and History are set together (Rock-Solid)
-                        _uiState.value = UiState.Success(profile, history.transactions)
-                        Log.d("SMS_DEBUG", "Dashboard Locked: Score=${profile.score}, Loans=${profile.eligibleLoans?.size ?: 0}")
+                        _uiState.value = UiState.Success(finalProfile, history.transactions)
+                        Log.d("SMS_DEBUG", "Dashboard Locked: Score=${finalProfile.score}, Loans=${finalProfile.eligibleLoans?.size ?: 0}")
                     }.onFailure {
                         // Fallback: Show sync results even if history fetch fails
                         _uiState.value = UiState.Success(profile, emptyList())

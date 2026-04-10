@@ -32,20 +32,19 @@ async function clearAllData() {
 /**
  * Saves a batch of parsed transactions to Supabase.
  * Uses UPSERT with 'reference_number' conflict resolution for idempotency.
- * SQL: ALTER TABLE transactions ADD CONSTRAINT unique_ref UNIQUE (reference_number);
  */
 async function saveTransactions(transactions) {
     if (transactions.length === 0) return;
 
-    // --- STEP 1: DEDUPLICATION SHIELD (Increased to 5000) ---
-    // Fetch significant history to prevent double-counting old messages
-    const { data: existingRefs } = await supabase
+    // --- NUCLEAR STABILITY: TOTAL DEDUPLICATION ---
+    // We fetch ALL reference numbers (no limit) to ensure even the oldest transaction is never double-counted.
+    const { data: allRefs, error: refError } = await supabase
         .from('transactions')
-        .select('reference_number')
-        .order('date', { ascending: false })
-        .limit(5000);
+        .select('reference_number');
 
-    const existingSet = new Set(existingRefs?.map(r => r.reference_number) || []);
+    if (refError) console.error("Ref Fetch Error:", refError.message);
+
+    const existingSet = new Set(allRefs?.map(r => r.reference_number) || []);
     
     const finalRows = transactions
         .filter(tx => !existingSet.has(tx.reference_number))
@@ -60,14 +59,10 @@ async function saveTransactions(transactions) {
 
     if (finalRows.length === 0) return;
 
-    // --- STEP 2: ATOMIC PERSIST ---
     // Use UPSERT on reference_number to handle bank retries vs duplicates
     const { error } = await supabase
         .from('transactions')
         .upsert(finalRows, { onConflict: 'reference_number', ignoreDuplicates: true });
-
-    if (error) console.error('Error saving transactions (UPSERT ref):', error.message);
-}
 
     if (error) console.error('Error saving transactions (UPSERT ref):', error.message);
 }
@@ -92,14 +87,15 @@ async function saveScore(scoreData) {
 
 /**
  * Fetches transaction history and latest score entries.
- * Increased to 1000 for maximum score stability.
+ * NUCLEAR STABILITY: Unlimited history check for scoring determinism.
  */
 async function getHistory() {
+    // 10,000 limit is a safe "unlimited" for business SMS history
     const { data: transactions, error: tError } = await supabase
         .from('transactions')
         .select('*')
         .order('date', { ascending: false })
-        .limit(1000);
+        .limit(10000); 
 
     const { data: scores, error: sError } = await supabase
         .from('scores')
