@@ -37,20 +37,13 @@ async function clearAllData() {
 async function saveTransactions(transactions) {
     if (transactions.length === 0) return;
 
-    // --- STEP 1: PRUNE JUNK (Auto-Clean) ---
-    // Remove any existing rows with NULL or 0 amount to clear old garbage
-    await supabase
-        .from('transactions')
-        .delete()
-        .or('amount.is.null,amount.eq.0');
-
-    // --- STEP 2: CODE-LEVEL DE-DUPLICATION ---
-    // Fetch last 100 reference numbers to prevent same-sync or recent duplicates
+    // --- STEP 1: DEDUPLICATION SHIELD (Increased to 5000) ---
+    // Fetch significant history to prevent double-counting old messages
     const { data: existingRefs } = await supabase
         .from('transactions')
         .select('reference_number')
         .order('date', { ascending: false })
-        .limit(100);
+        .limit(5000);
 
     const existingSet = new Set(existingRefs?.map(r => r.reference_number) || []);
     
@@ -67,7 +60,7 @@ async function saveTransactions(transactions) {
 
     if (finalRows.length === 0) return;
 
-    // --- STEP 3: PERSIST ---
+    // --- STEP 2: ATOMIC PERSIST ---
     // Use UPSERT on reference_number to handle bank retries vs duplicates
     const { error } = await supabase
         .from('transactions')

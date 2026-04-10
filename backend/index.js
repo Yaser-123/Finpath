@@ -47,15 +47,23 @@ app.post('/api/sms', async (req, res) => {
             await saveTransactions(currentTransactions);
         }
 
-        // 3. Merging with Database History
+        // 3. Merging with Database History (Rock-Solid Deduplication)
         const historyData = await getHistory();
         const existingHistory = historyData.transactions || [];
         
-        // Final deduplicated list for calculation
+        // Final deduplicated list for calculation: Map guarantees 1 unique entry per ref
         const masterRefMap = new Map();
-        [...existingHistory, ...currentTransactions].forEach(tx => {
-            masterRefMap.set(tx.reference_number, tx);
+        
+        // Add existing from DB first
+        existingHistory.forEach(tx => {
+            if (tx.reference_number) masterRefMap.set(tx.reference_number, tx);
         });
+        
+        // Overwrite/Add with current batch (Atomic Truth)
+        currentTransactions.forEach(tx => {
+            if (tx.reference_number) masterRefMap.set(tx.reference_number, tx);
+        });
+        
         const mergedHistory = Array.from(masterRefMap.values());
 
         // 4. Calculate Intelligence
