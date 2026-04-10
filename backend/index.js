@@ -111,7 +111,8 @@ app.get('/api/history', async (req, res) => {
             transactions: transactions,
             latestScore: latestScore ? {
                 ...latestScore,
-                breakdown: dynamicBreakdown // Overlay fresh breakdown
+                breakdown: dynamicBreakdown, // Overlay fresh breakdown
+                eligibleLoans: getLoans(latestScore.score) // HYDRATE LOANS FOR HISTORY
             } : null,
             scoreChange: historyData.latestScores.length >= 2 ? 
                 (historyData.latestScores[0].score - historyData.latestScores[1].score) : 0

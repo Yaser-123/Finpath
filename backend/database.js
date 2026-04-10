@@ -14,7 +14,14 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 async function saveTransactions(transactions) {
     if (transactions.length === 0) return;
 
-    // --- CODE-LEVEL DE-DUPLICATION (Failsafe) ---
+    // --- STEP 1: PRUNE JUNK (Auto-Clean) ---
+    // Remove any existing rows with NULL or 0 amount to clear old garbage
+    await supabase
+        .from('transactions')
+        .delete()
+        .or('amount.is.null,amount.eq.0');
+
+    // --- STEP 2: CODE-LEVEL DE-DUPLICATION ---
     // Fetch last 100 reference numbers to prevent same-sync or recent duplicates
     const { data: existingRefs } = await supabase
         .from('transactions')
@@ -37,10 +44,14 @@ async function saveTransactions(transactions) {
 
     if (finalRows.length === 0) return;
 
+    // --- STEP 3: PERSIST ---
     // Use UPSERT on reference_number to handle bank retries vs duplicates
     const { error } = await supabase
         .from('transactions')
         .upsert(finalRows, { onConflict: 'reference_number', ignoreDuplicates: true });
+
+    if (error) console.error('Error saving transactions (UPSERT ref):', error.message);
+}
 
     if (error) console.error('Error saving transactions (UPSERT ref):', error.message);
 }

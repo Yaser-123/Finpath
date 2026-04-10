@@ -50,7 +50,7 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
                             scoreChange = response.scoreChange,
                             breakdown = response.latestScore.breakdown ?: ScoreBreakdown(),
                             summary = "Historical business profile and trend analysis loaded.",
-                            eligibleLoans = emptyList()
+                            eligibleLoans = response.latestScore.eligibleLoans ?: emptyList() // FIX: Use real loans!
                         )
                         _uiState.value = UiState.Success(mockProfile, response.transactions)
                     } else {
