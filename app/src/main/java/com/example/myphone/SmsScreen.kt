@@ -298,7 +298,7 @@ fun TopMerchantsSection(merchants: List<String>) {
                 merchants.forEachIndexed { _, name ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF1A237E))
-                        Text(name, modifier = Modifier.padding(start = 8.dp, vertical = 4.dp))
+                        Text(name, modifier = Modifier.padding(start = 8.dp).padding(vertical = 4.dp))
                     }
                 }
             }
