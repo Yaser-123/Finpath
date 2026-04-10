@@ -10,18 +10,23 @@ const data = JSON.stringify({
   messages: [
     {
       sender: "HDFC-BANK",
-      body: "Rs 500.00 debited from Ac xx123 for UPI txn to Ramesh. Ref: 410123456789.",
+      body: "Rs.400.00 debited to AL BAIK TAHARI via UPI on 01Mar26. Ref: 410123456789.",
       date: "2024-04-10 10:30:45"
     },
     {
       sender: "SBI-UPIN",
-      body: "Your A/c x5678 is credited by ₹1,200.00 on 10/04/24. Ref: 987654321034.",
+      body: "₹1,200.00 received from Rahul via UPI on 05Apr26. Ref: 987654321034.",
       date: "2024-04-10 11:15:20"
     },
     {
-      sender: "AMAZON-PAY",
-      body: "Paid INR 150.00 for order ID #9876. Txn ID: AZN123456.",
+      sender: "AXIS-PAY",
+      body: "INR 250.00 paid to Swiggy on 10Apr26. Ref: AX12345.",
       date: "2024-04-10 12:00:00"
+    },
+    {
+      sender: "ICICI-BNK",
+      body: "Your A/c x4321 is credited with Rs.10,500.00 from Uncle Sam via UPI on 12Apr26.",
+      date: "2024-04-10 13:00:00"
     }
   ]
 });
@@ -33,7 +38,7 @@ const options = {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Content-Length': data.length
+    'Content-Length': Buffer.byteLength(data)
   }
 };
 
@@ -53,6 +58,6 @@ req.on('error', (error) => {
   console.log('\nMake sure your backend is running! (npm start in backend folder)');
 });
 
-console.log('Sending 3 simulated financial messages...');
+console.log('Sending 4 simulated financial messages...');
 req.write(data);
 req.end();

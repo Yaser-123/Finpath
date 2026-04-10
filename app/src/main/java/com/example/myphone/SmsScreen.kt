@@ -1,26 +1,15 @@
 package com.example.myphone
 
-
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,82 +17,95 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SmsScreen(viewModel: SmsViewModel) {
     val uiState by viewModel.uiState.collectAsState()
 
-    val backgroundBrush = Brush.linearGradient(
-        colors = listOf(
-            Color(0xFF200122),
-            Color(0xFF0B2E3D)
-        )
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundBrush)
-            .padding(top = 40.dp, start = 16.dp, end = 16.dp)
-    ) {
-        Text(
-            text = "Financial SMS Sync",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 8.dp),
-            color = Color.White
-        )
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "Fetched: ${uiState.smsList.size} messages",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.LightGray
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Business Credit Profile", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Button(
-                onClick = { viewModel.syncMessages() },
-                enabled = !uiState.isSyncing && uiState.smsList.isNotEmpty(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE94057))
-            ) {
-                if (uiState.isSyncing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.width(20.dp).height(20.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Sync Messages")
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { viewModel.syncBusinessData() },
+                icon = { Icon(Icons.Default.Refresh, contentDescription = null) },
+                text = { Text("Sync Business Data") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White
+            )
+        }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(Color(0xFFF8F9FA))
+        ) {
+            when (val state = uiState) {
+                is UiState.Loading -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Analyzing Business Activity...", style = MaterialTheme.typography.bodyLarge)
+                    }
                 }
-            }
-        }
-
-        if (uiState.syncStatus.isNotEmpty()) {
-            Text(
-                text = uiState.syncStatus,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (uiState.syncStatus.startsWith("Success")) Color.Green else Color.Yellow,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (uiState.smsList.isEmpty()) {
-            Text(
-                text = "No financial messages found with the set keywords.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(uiState.smsList) { sms ->
-                    SmsItem(sms = sms)
+                is UiState.Success -> {
+                    CreditProfileContent(state.profile, state.history, viewModel.getCurrentTimestamp())
+                }
+                is UiState.Error -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color.Gray)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(state.message, textAlign = TextAlign.Center, color = Color.Gray)
+                        Button(onClick = { viewModel.syncBusinessData() }, modifier = Modifier.padding(top = 16.dp)) {
+                            Text("Retry")
+                        }
+                    }
+                }
+                is UiState.Idle -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Welcome to SMS Credit Profile",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Sync your business messages to generate a real-time credit score and unlock micro-loan eligibility.",
+                            textAlign = TextAlign.Center,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
         }
@@ -111,34 +113,221 @@ fun SmsScreen(viewModel: SmsViewModel) {
 }
 
 @Composable
-fun SmsItem(sms: Sms) {
+fun CreditProfileContent(
+    profile: CreditProfileResponse,
+    history: List<HistoryItem>,
+    lastUpdated: String
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // 1. Hero Section
+        item {
+            CreditScoreCard(profile)
+        }
+
+        // 2. Business Metrics Grid
+        item {
+            BusinessMetricsSection(profile.features)
+        }
+
+        // 3. Insights
+        if (profile.insights != null) {
+            item {
+                InsightsSection(profile.insights)
+            }
+        }
+
+        // 4. Frequent Transactions
+        if (profile.topMerchants.isNotEmpty()) {
+            item {
+                TopMerchantsSection(profile.topMerchants)
+            }
+        }
+
+        // 5. Recent Activity
+        item {
+            Text("Recent Activity (Synced)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+        }
+
+        items(history.take(5)) { item ->
+            TransactionItem(item)
+        }
+
+        item {
+            Text(
+                "Last Updated: $lastUpdated",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(80.dp)) // Padding for FAB
+        }
+    }
+}
+
+@Composable
+fun CreditScoreCard(profile: CreditProfileResponse) {
+    val riskColor = when (profile.risk) {
+        "LOW" -> Color(0xFF4CAF50)
+        "MEDIUM" -> Color(0xFFFFC107)
+        else -> Color(0xFFF44336)
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF0B2E3D),
-            contentColor = Color.White
-        )
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A237E))
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(24.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Business Credit Score", color = Color.White.copy(alpha = 0.7f))
             Text(
-                text = sms.sender,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                "${profile.score}",
+                fontSize = 64.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
+            
+            Surface(
+                color = riskColor,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "${profile.risk} RISK",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    color = if (profile.risk == "MEDIUM") Color.Black else Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val eligibilityText = if (profile.score > 650) "✅ Eligible for Micro Loan" else "⚠️ Improve activity to qualify"
+            Text(eligibilityText, color = Color.White, fontWeight = FontWeight.Bold)
+            
             Text(
-                text = sms.date,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.LightGray
+                profile.summary,
+                textAlign = TextAlign.Center,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.padding(top = 8.dp),
+                fontSize = 14.sp
             )
+        }
+    }
+}
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.Gray.copy(alpha = 0.5f))
+@Composable
+fun BusinessMetricsSection(features: BusinessFeatures?) {
+    if (features == null) return
 
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Business Metrics", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+        
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MetricCard("Monthly Inflow", "₹${features.totalCredit}", Modifier.weight(1f), Color(0xFFE8F5E9), Color(0xFF2E7D32))
+            MetricCard("Business Outflow", "₹${features.totalDebit}", Modifier.weight(1f), Color(0xFFFFEBEE), Color(0xFFC62828))
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MetricCard("Net Cash Flow", "₹${features.netBalance}", Modifier.weight(1f), Color(0xFFE3F2FD), Color(0xFF1565C0))
+            MetricCard("Business Activity", "${features.transactionCount} txns", Modifier.weight(1f), Color(0xFFFFF3E0), Color(0xFFEF6C00))
+        }
+    }
+}
+
+@Composable
+fun MetricCard(label: String, value: String, modifier: Modifier, bgColor: Color, textColor: Color) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = bgColor)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(label, fontSize = 12.sp, color = textColor.copy(alpha = 0.7f))
+            Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor)
+        }
+    }
+}
+
+@Composable
+fun InsightsSection(insights: CreditInsights) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Evaluation Insights", fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            InsightRow("Income", insights.incomeStrength)
+            InsightRow("Spending", insights.spendingBehavior)
+            InsightRow("Activity", insights.activityLevel)
+        }
+    }
+}
+
+@Composable
+fun InsightRow(label: String, detail: String) {
+    Row(modifier = Modifier.padding(bottom = 8.dp)) {
+        Text("• ", fontWeight = FontWeight.Bold)
+        Column {
+            Text(label, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(detail, fontSize = 14.sp, color = Color.DarkGray)
+        }
+    }
+}
+
+@Composable
+fun TopMerchantsSection(merchants: List<String>) {
+    Column {
+        Text("Frequent Transactions", fontWeight = FontWeight.Bold)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                merchants.forEachIndexed { index, name ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFFC107))
+                        Text(name, modifier = Modifier.padding(start = 8.dp, vertical = 4.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TransactionItem(item: HistoryItem) {
+    val color = if (item.type == "credit") Color(0xFF2E7D32) else Color(0xFFC62828)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(item.merchant, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(item.date, fontSize = 12.sp, color = Color.Gray)
+            }
             Text(
-                text = sms.body,
-                style = MaterialTheme.typography.bodyMedium,
-                overflow = TextOverflow.Ellipsis
+                "${if (item.type == "credit") "+" else "-"} ₹${item.amount}",
+                fontWeight = FontWeight.Bold,
+                color = color
             )
         }
     }

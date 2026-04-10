@@ -29,7 +29,7 @@ class SmsRepository(private val context: Context) {
             .create(SmsApi::class.java)
     }
 
-    private val keywords = listOf("UPI", "credited", "debited", "paid", "received", "txn", "bank", "INR", "Rs", "₹")
+    private val keywords = listOf("UPI", "credited", "debited", "paid", "received", "txn", "bank", "INR", "Rs", "₹", "A/c")
 
     fun getFilteredSms(): List<Sms> {
         val smsList = mutableListOf<Sms>()
@@ -66,13 +66,32 @@ class SmsRepository(private val context: Context) {
         return smsList
     }
 
-    suspend fun syncSms(messages: List<Sms>): Result<SmsSyncResponse> {
+    /**
+     * Syncs local SMS to backend to get the latest Credit Profile
+     */
+    suspend fun syncSms(messages: List<Sms>): Result<CreditProfileResponse> {
         return try {
             val response = api.syncSms(SmsSyncRequest(messages))
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception("Sync failed: ${response.code()}"))
+                Result.failure(Exception("Evaluation failed: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Fetches transaction history from Supabase via backend
+     */
+    suspend fun getHistory(): Result<HistoryResponse> {
+        return try {
+            val response = api.getHistory()
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("History fetch failed: ${response.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
