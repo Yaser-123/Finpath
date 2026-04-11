@@ -16,16 +16,27 @@ class MainActivity : ComponentActivity() {
     private val viewModel: SmsViewModel by viewModels()
 
     private val permissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) {
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            val smsGranted = permissions[Manifest.permission.READ_SMS] ?: false
+            val notificationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permissions[Manifest.permission.POST_NOTIFICATIONS] ?: false
+            } else true
+
+            if (smsGranted) {
                 // Permission granted - UI will handle data state
             }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        checkPermissionAndLoadSms()
+        NotificationHelper.createChannel(this)
+        checkPermissionsAndLoadSms()
+
+        // Handle navigation from notification intent
+        intent.getIntExtra("OPEN_TAB", -1).let { tabIndex ->
+            if (tabIndex != -1) viewModel.selectedTab.value = tabIndex
+        }
+
         setContent {
             MyPhoneTheme {
                 SmsScreen(viewModel = viewModel)
@@ -33,18 +44,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun checkPermissionAndLoadSms() {
-        when {
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_SMS
-            ) == PackageManager.PERMISSION_GRANTED -> {
-                // Already granted
-            }
+    private fun checkPermissionsAndLoadSms() {
+        val permissions = mutableListOf(Manifest.permission.READ_SMS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
 
-            else -> {
-                permissionLauncher.launch(Manifest.permission.READ_SMS)
-            }
+        val allGranted = permissions.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+
+        if (allGranted) {
+            // All good
+        } else {
+            permissionLauncher.launch(permissions.toTypedArray())
         }
     }
 }

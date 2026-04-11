@@ -24,15 +24,14 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
     val uiState: StateFlow<UiState> = _uiState
 
-    private val _currentTab = MutableStateFlow(0)
-    val currentTab: StateFlow<Int> = _currentTab
+    val selectedTab = MutableStateFlow(0)
 
     init {
         refreshHistory()
     }
 
     fun setTab(index: Int) {
-        _currentTab.value = index
+        selectedTab.value = index
     }
 
     fun refreshHistory() {
@@ -107,6 +106,13 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
                             )
                         }
 
+                        // NOTIFICATION LOGIC: Trigger alerts based on changes
+                        handleSyncNotifications(
+                            oldScore = if (_uiState.value is UiState.Success) (_uiState.value as UiState.Success).profile.score else 0,
+                            newProfile = finalProfile,
+                            historyItemCount = history.transactions.size
+                        )
+
                         // Atomic state update: Profile and History are set together (Rock-Solid)
                         _uiState.value = UiState.Success(finalProfile, history.transactions)
                         Log.d("SMS_DEBUG", "Dashboard Locked: Score=${finalProfile.score}, Loans=${finalProfile.eligibleLoans?.size ?: 0}")
@@ -132,5 +138,34 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
         val income = history.filter { it.type.equals("credit", ignoreCase = true) }.sumOf { it.amount }.toFloat()
         val expense = history.filter { it.type.equals("debit", ignoreCase = true) }.sumOf { it.amount }.toFloat()
         return income to expense
+    }
+
+    private fun handleSyncNotifications(oldScore: Int, newProfile: CreditProfileResponse, historyItemCount: Int) {
+        val appContext = getApplication<Application>().applicationContext
+        
+        // 1. Score Change
+        if (oldScore != 0) {
+            val delta = newProfile.score - oldScore
+            if (delta > 0) {
+                NotificationHelper.notifyScoreIncrease(appContext, delta)
+            } else if (delta < 0) {
+                NotificationHelper.notifyScoreDecrease(appContext, -delta)
+            }
+        }
+
+        // 2. Loan Eligibility
+        val eligibleCount = newProfile.eligibleLoans?.size ?: 0
+        if (eligibleCount > 0) {
+            NotificationHelper.notifyLoanOffers(appContext, eligibleCount)
+        }
+
+        // 3. Activity Levels
+        val thresholdHigh = 20
+        val thresholdLow = 5
+        if (historyItemCount >= thresholdHigh) {
+            NotificationHelper.notifyHighActivity(appContext, historyItemCount)
+        } else if (historyItemCount <= thresholdLow && historyItemCount > 0) {
+            NotificationHelper.notifyLowActivity(appContext, historyItemCount)
+        }
     }
 }

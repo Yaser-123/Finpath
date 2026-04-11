@@ -40,7 +40,7 @@ val GrowthGreen = Color(0xFF4CAF50)
 @Composable
 fun SmsScreen(viewModel: SmsViewModel) {
     val uiState by viewModel.uiState.collectAsState()
-    val currentTab by viewModel.currentTab.collectAsState()
+    val selectedTab by viewModel.selectedTab.collectAsState()
 
     Scaffold(
         topBar = {
@@ -50,17 +50,17 @@ fun SmsScreen(viewModel: SmsViewModel) {
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
                 )
                 TabRow(
-                    selectedTabIndex = currentTab,
+                    selectedTabIndex = selectedTab,
                     containerColor = DarkBackground,
                     contentColor = NetflixRed,
                     divider = {},
                     indicator = { tabPositions ->
-                        SecondaryIndicator(Modifier.tabIndicatorOffset(tabPositions[currentTab]), color = NetflixRed)
+                        SecondaryIndicator(Modifier.tabIndicatorOffset(tabPositions[selectedTab]), color = NetflixRed)
                     }
                 ) {
-                    Tab(selected = currentTab == 0, onClick = { viewModel.setTab(0) }, text = { Text("Overview", color = if (currentTab == 0) NetflixRed else TextSecondary) })
-                    Tab(selected = currentTab == 1, onClick = { viewModel.setTab(1) }, text = { Text("Analytics", color = if (currentTab == 1) NetflixRed else TextSecondary) })
-                    Tab(selected = currentTab == 2, onClick = { viewModel.setTab(2) }, text = { Text("Loans", color = if (currentTab == 2) NetflixRed else TextSecondary) })
+                    Tab(selected = selectedTab == 0, onClick = { viewModel.setTab(0) }, text = { Text("Overview", color = if (selectedTab == 0) NetflixRed else TextSecondary) })
+                    Tab(selected = selectedTab == 1, onClick = { viewModel.setTab(1) }, text = { Text("Analytics", color = if (selectedTab == 1) NetflixRed else TextSecondary) })
+                    Tab(selected = selectedTab == 2, onClick = { viewModel.setTab(2) }, text = { Text("Loans", color = if (selectedTab == 2) NetflixRed else TextSecondary) })
                 }
             }
         },
@@ -77,7 +77,7 @@ fun SmsScreen(viewModel: SmsViewModel) {
             when (val state = uiState) {
                 is UiState.Loading -> LoadingOverlay()
                 is UiState.Success -> {
-                    Crossfade(targetState = currentTab, label = "tab") { tab ->
+                    Crossfade(targetState = selectedTab, label = "tab") { tab ->
                         when (tab) {
                             0 -> OverviewTab(state.profile, state.history, viewModel.getCurrentTimestamp())
                             1 -> AnalyticsTab(state.history, viewModel)
