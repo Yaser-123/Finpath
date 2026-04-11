@@ -25,6 +25,9 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
     val uiState: StateFlow<UiState> = _uiState
 
+    private val _schemes = MutableStateFlow<List<GovScheme>>(emptyList())
+    val schemes: StateFlow<List<GovScheme>> = _schemes
+
     val selectedTab = MutableStateFlow(0)
 
     init {
@@ -60,6 +63,9 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
                             ),
                             response.transactions
                         )
+                        
+                        // Hydrate schemes for the UI
+                        fetchGovSchemes(response.latestScore.features)
                     } else {
                         _uiState.value = UiState.Idle
                     }
@@ -117,6 +123,9 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
                         // Atomic state update: Profile and History are set together (Rock-Solid)
                         _uiState.value = UiState.Success(finalProfile, history.transactions)
                         Log.d("SMS_DEBUG", "Dashboard Locked: Score=${finalProfile.score}, Loans=${finalProfile.eligibleLoans?.size ?: 0}")
+                        
+                        // Fetch personalized government schemes
+                        fetchGovSchemes(finalProfile.features ?: BusinessFeatures())
                     }.onFailure {
                         // Fallback: Show sync results even if history fetch fails
                         _uiState.value = UiState.Success(profile, emptyList())
@@ -201,5 +210,15 @@ class SmsViewModel(application: Application) : AndroidViewModel(application) {
             Generated from UPI transaction analysis
             BizCredit AI Engine v2.0
         """.trimIndent()
+    }
+
+    private fun fetchGovSchemes(features: BusinessFeatures) {
+        viewModelScope.launch {
+            repository.getGovernmentSchemes(features).onSuccess { response ->
+                _schemes.value = response.schemes
+            }.onFailure {
+                Log.e("SmsViewModel", "Failed to fetch schemes", it)
+            }
+        }
     }
 }

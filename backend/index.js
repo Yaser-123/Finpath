@@ -10,6 +10,7 @@ const { calculateScore, classifyRisk, generateInsights, generateSummary } = requ
 const { saveTransactions, saveScore, getHistory, clearAllData, pruneJunk } = require('./database');
 const { getLoans, bustLoanCache } = require('./loans');
 const { runDiscovery } = require('./loan_discovery');
+const { fetchSchemes } = require('./schemes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -139,6 +140,20 @@ app.get('/api/history', async (req, res) => {
     } catch (error) {
         console.error('History Error:', error);
         res.status(500).json({ status: 'error', message: 'Failed to fetch history' });
+    }
+});
+
+// ============================================================
+// POST /api/schemes — Government Discovery
+// ============================================================
+app.post('/api/schemes', async (req, res) => {
+    try {
+        const { score, netBalance, transactionCount } = req.body;
+        const result = await fetchSchemes({ score, netBalance, transactionCount });
+        res.json(result);
+    } catch (error) {
+        console.error('Schemes API Error:', error);
+        res.status(500).json({ status: 'error', message: 'Discovery failed' });
     }
 });
 

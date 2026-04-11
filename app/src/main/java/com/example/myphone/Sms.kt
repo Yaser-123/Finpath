@@ -90,3 +90,15 @@ data class ScoreEntry(
     @SerializedName("insights") val insights: CreditInsights = CreditInsights(),
     @SerializedName("eligibleLoans") val eligibleLoans: List<LoanProduct>? = emptyList()
 )
+
+data class GovScheme(
+    @SerializedName("title") val title: String,
+    @SerializedName("description") val description: String,
+    @SerializedName("link") val link: String,
+    @SerializedName("category") val category: String = "Scheme",
+    @SerializedName("recommended") val recommended: Boolean = false
+)
+
+data class GovSchemesResponse(
+    @SerializedName("schemes") val schemes: List<GovScheme>
+)

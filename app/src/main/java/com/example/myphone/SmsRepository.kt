@@ -110,4 +110,20 @@ class SmsRepository(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    /**
+     * Fetches personalized government schemes
+     */
+    suspend fun getGovernmentSchemes(features: BusinessFeatures): Result<GovSchemesResponse> {
+        return try {
+            val response = api.getSchemes(features)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Schemes fetch failed: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

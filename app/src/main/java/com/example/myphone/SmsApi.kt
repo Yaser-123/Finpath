@@ -17,6 +17,9 @@ interface SmsApi {
      */
     @GET("api/history")
     suspend fun getHistory(): Response<HistoryResponse>
+
+    @POST("api/schemes")
+    suspend fun getSchemes(@Body features: BusinessFeatures): Response<GovSchemesResponse>
 }
 
 data class SmsSyncRequest(

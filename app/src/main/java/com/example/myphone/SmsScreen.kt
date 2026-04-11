@@ -49,11 +49,12 @@ fun SmsScreen(viewModel: SmsViewModel) {
                     title = { Text("BizCredit intelligence", fontWeight = FontWeight.Bold, color = TextPrimary) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
                 )
-                TabRow(
+                ScrollableTabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = DarkBackground,
                     contentColor = NetflixRed,
                     divider = {},
+                    edgePadding = 16.dp,
                     indicator = { tabPositions ->
                         SecondaryIndicator(Modifier.tabIndicatorOffset(tabPositions[selectedTab]), color = NetflixRed)
                     }
@@ -61,6 +62,7 @@ fun SmsScreen(viewModel: SmsViewModel) {
                     Tab(selected = selectedTab == 0, onClick = { viewModel.setTab(0) }, text = { Text("Overview", color = if (selectedTab == 0) NetflixRed else TextSecondary) })
                     Tab(selected = selectedTab == 1, onClick = { viewModel.setTab(1) }, text = { Text("Analytics", color = if (selectedTab == 1) NetflixRed else TextSecondary) })
                     Tab(selected = selectedTab == 2, onClick = { viewModel.setTab(2) }, text = { Text("Loans", color = if (selectedTab == 2) NetflixRed else TextSecondary) })
+                    Tab(selected = selectedTab == 3, onClick = { viewModel.setTab(3) }, text = { Text("Schemes", color = if (selectedTab == 3) NetflixRed else TextSecondary) })
                 }
             }
         },
@@ -82,6 +84,10 @@ fun SmsScreen(viewModel: SmsViewModel) {
                             0 -> OverviewTab(state.profile, state.history, viewModel.getCurrentTimestamp())
                             1 -> AnalyticsTab(state.history, viewModel, state.profile)
                             2 -> LoansTab(state.profile.eligibleLoans)
+                            3 -> {
+                                val schemes by viewModel.schemes.collectAsState()
+                                SchemesTab(schemes)
+                            }
                         }
                     }
                 }
@@ -146,6 +152,87 @@ fun AnalyticsTab(history: List<HistoryItem>, viewModel: SmsViewModel, profile: C
         item { AnalyticsTitle("Historical transacting partners") }
         items(history.take(10)) { TransactionRow(it) }
         item { Spacer(Modifier.height(80.dp)) }
+    }
+}
+
+@Composable
+fun SchemesTab(schemes: List<GovScheme>) {
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        item {
+            Text("Government Schemes", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = TextPrimary)
+            Text("Official programs you may be eligible for", color = TextSecondary, fontSize = 14.sp)
+        }
+        
+        if (schemes.isEmpty()) {
+            item { 
+                Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = NetflixRed)
+                        Spacer(Modifier.height(12.dp))
+                        Text("Discovering relevant programs...", color = TextSecondary, fontSize = 12.sp)
+                    }
+                }
+            }
+        } else {
+            items(schemes) { SchemeCard(it) }
+        }
+        item { Spacer(Modifier.height(40.dp)) }
+        item {
+            Text(
+                "Data fetched live from official sources",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                color = TextSecondary,
+                fontSize = 11.sp
+            )
+        }
+        item { Spacer(Modifier.height(80.dp)) }
+    }
+}
+
+@Composable
+fun SchemeCard(scheme: GovScheme) {
+    val context = LocalContext.current
+    val accentColor = when (scheme.category) {
+        "Loan" -> GrowthGreen
+        "Subsidy" -> Color(0xFF2196F3)
+        "Registration" -> Color(0xFFFFC107)
+        else -> TextSecondary
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(0.05f))
+    ) {
+        Column(Modifier.padding(20.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Surface(color = accentColor.copy(0.1f), shape = RoundedCornerShape(4.dp)) {
+                    Text(scheme.category.uppercase(), Modifier.padding(horizontal = 8.dp, vertical = 2.dp), color = accentColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
+                if (scheme.recommended) {
+                    Surface(color = GrowthGreen.copy(0.15f), shape = RoundedCornerShape(4.dp)) {
+                        Text("RECOMMENDED FOR YOU", Modifier.padding(horizontal = 8.dp, vertical = 2.dp), color = GrowthGreen, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+            }
+            
+            Spacer(Modifier.height(12.dp))
+            Text(scheme.title, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary)
+            Spacer(Modifier.height(6.dp))
+            Text(scheme.description, color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp)
+            
+            Spacer(Modifier.height(20.dp))
+            Button(
+                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(scheme.link))) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(0.05f)),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Learn More →", color = TextPrimary, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 
