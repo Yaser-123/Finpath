@@ -175,11 +175,17 @@ SMS: ${sms_text}`;
     console.log(`[sms.parse] user=${req.user.id} sender=${sender} text_date=${extracted?.date} body_ts=${timestamp} final_date=${transactionDate}`);
   }
 
+  const transactionAmount = Number(extracted.amount);
+  if (isNaN(transactionAmount) || transactionAmount <= 0) {
+    if (process.env.SMS_DEBUG === 'true') console.log(`[sms.skip] Invalid amount: ${extracted.amount}`);
+    return res.status(200).json({ skipped: true, reason: 'could not extract valid amount' });
+  }
+
   const baseInsert = {
     user_id:          req.user.id,
     source:           'sms',
     type:             extracted.type,
-    amount:           extracted.amount,
+    amount:           transactionAmount,
     merchant_name:    merchantName,
     category,
     transaction_date: transactionDate,
@@ -187,37 +193,47 @@ SMS: ${sms_text}`;
     raw_sms: sms_text,
   };
 
-  let result;
-  if (baseInsert.reference_number) {
-    result = await supabase
-      .from('transactions')
-      .upsert(baseInsert, { onConflict: 'reference_number' })
-      .select()
-      .single();
-  } else {
-    result = await supabase
-      .from('transactions')
-      .insert(baseInsert)
-      .select()
-      .single();
-  }
-
-  const { data, error } = result;
-
-  if (error) {
-    if (error.code === '23505') {
-      return res.status(200).json({ skipped: true, reason: 'duplicate transaction' });
+  try {
+    let result;
+    if (baseInsert.reference_number) {
+      result = await supabase
+        .from('transactions')
+        .upsert(baseInsert, { onConflict: 'reference_number' })
+        .select()
+        .single();
+    } else {
+      result = await supabase
+        .from('transactions')
+        .insert(baseInsert)
+        .select()
+        .single();
     }
-    return res.status(500).json({ error: 'Database insert failed', detail: error.message });
-  }
 
-  return res.status(201).json({
-    transaction_id: data.id,
-    merchant_name:  data.merchant_name,
-    amount:         data.amount,
-    type:           data.type,
-    category:       data.category,
-  });
+    const { data, error } = result;
+
+    if (error) {
+      console.error(`[sms.error] Database error:`, JSON.stringify(error));
+      if (error.code === '23505') {
+        return res.status(200).json({ skipped: true, reason: 'duplicate transaction' });
+      }
+      return res.status(500).json({ error: 'Database operation failed', detail: error.message, code: error.code });
+    }
+
+    if (!data) {
+       return res.status(500).json({ error: 'No data returned from database' });
+    }
+
+    return res.status(201).json({
+      transaction_id: data.id,
+      merchant_name:  data.merchant_name,
+      amount:         data.amount,
+      type:           data.type,
+      category:       data.category,
+    });
+  } catch (err) {
+    console.error(`[sms.crash] Critical error:`, err);
+    return res.status(500).json({ error: 'Internal server crash', detail: err.message });
+  }
 });
 
 module.exports = router;
