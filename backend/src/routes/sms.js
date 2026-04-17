@@ -187,11 +187,22 @@ SMS: ${sms_text}`;
     raw_sms: sms_text,
   };
 
-  const { data, error } = await supabase
-    .from('transactions')
-    .upsert(baseInsert, { onConflict: 'reference_number', ignoreDuplicates: false })
-    .select()
-    .single();
+  let result;
+  if (baseInsert.reference_number) {
+    result = await supabase
+      .from('transactions')
+      .upsert(baseInsert, { onConflict: 'reference_number' })
+      .select()
+      .single();
+  } else {
+    result = await supabase
+      .from('transactions')
+      .insert(baseInsert)
+      .select()
+      .single();
+  }
+
+  const { data, error } = result;
 
   if (error) {
     if (error.code === '23505') {
