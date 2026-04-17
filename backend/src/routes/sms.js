@@ -55,12 +55,18 @@ function hasFinancialHint(text) {
  */
 router.post('/parse', authenticate, async (req, res) => {
   const { sms_text, sender } = req.body;
+  const trustedSender = isTrustedSender(sender);
+  const financialHint = hasFinancialHint(sms_text);
+
+  if (process.env.NODE_ENV !== 'production' || process.env.SMS_DEBUG === 'true') {
+    console.log(`[sms.parse] user=${req.user?.id} sender=${sender || 'unknown'} trusted=${trustedSender} hint=${financialHint}`);
+  }
 
   if (!sms_text) {
     return res.status(400).json({ error: 'sms_text is required' });
   }
 
-  if (!isTrustedSender(sender) && !hasFinancialHint(sms_text)) {
+  if (!trustedSender && !financialHint) {
     return res.status(200).json({ skipped: true, reason: 'not recognized as financial sms' });
   }
 

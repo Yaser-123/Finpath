@@ -8,6 +8,12 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
+// Behind ngrok/reverse proxies, Express must trust forwarded headers so
+// req.ip and rate limiting work correctly.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 app.use(helmet());
 app.use(cors());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
