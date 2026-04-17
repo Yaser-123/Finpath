@@ -237,7 +237,7 @@ fun HomeScreen(navController: NavController) {
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = loading,
-            onRefresh = { fetchData() },
+            onRefresh = { scope.launch { syncSmsHistory() } },
             state = pullToRefreshState
         ) {
             Column(
