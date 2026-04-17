@@ -1,10 +1,12 @@
 package com.finpath.app.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,7 +40,7 @@ fun SpendingTrendChart(data: List<DailySpend>, modifier: Modifier = Modifier) {
     val xLabels = data.map { it.date.split("-").last() }
     val yValues = data.map { it.amount }
 
-    remember(data) {
+    LaunchedEffect(data) {
         modelProducer.runTransaction {
             lineSeries {
                 series(yValues)
@@ -48,30 +50,13 @@ fun SpendingTrendChart(data: List<DailySpend>, modifier: Modifier = Modifier) {
 
     CartesianChartHost(
         chart = rememberCartesianChart(
-            rememberLineCartesianLayer(
-                listOf(
-                    rememberLineSpec(
-                        shader = Brush.verticalGradient(listOf(Indigo500, Indigo500.copy(alpha = 0.2f))).toDynamicShader(),
-                        backgroundShader = Brush.verticalGradient(listOf(Indigo500.copy(alpha = 0.4f), Color.Transparent)).toDynamicShader()
-                    )
-                )
-            ),
-            startAxis = rememberStartAxis(
-                label = null,
-                tick = null,
-                axis = null,
-                guideline = null
-            ),
-            bottomAxis = rememberBottomAxis(
-                label = null,
-                tick = null,
-                axis = null,
-                guideline = null
-            )
+            rememberLineCartesianLayer(),
+            startAxis = rememberStartAxis(),
+            bottomAxis = rememberBottomAxis()
         ),
         modelProducer = modelProducer,
         modifier = modifier.height(120.dp),
-        horizontalLayout = HorizontalLayout.fullWidth()
+        horizontalLayout = HorizontalLayout.FullWidth
     )
 }
 
