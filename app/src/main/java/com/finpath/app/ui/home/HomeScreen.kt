@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,8 +96,16 @@ fun HomeScreen(navController: NavController) {
 
         var foundCount = 0
         var scannedCount = 0
+        var apiErrorCount = 0
+        var authErrorCount = 0
         withContext(Dispatchers.IO) {
-            val session = SupabaseClient.client.auth.currentSessionOrNull() ?: return@withContext
+            val session = SupabaseClient.client.auth.currentSessionOrNull()
+            if (session == null) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Please sign in first, then sync SMS.", Toast.LENGTH_LONG).show()
+                }
+                return@withContext
+            }
             val authHeader = "Bearer ${session.accessToken}"
 
             try {
@@ -127,7 +136,12 @@ fun HomeScreen(navController: NavController) {
                         try {
                             val result = ApiClient.api.parseSms(authHeader, SmsParseRequest(smsText = body, sender = sender))
                             if (result.skipped != true) foundCount++
+                        } catch (e: HttpException) {
+                            apiErrorCount++
+                            if (e.code() == 401) authErrorCount++
+                            Log.e("FinPath", "HTTP ${e.code()} parsing SMS from $sender", e)
                         } catch (e: Exception) {
+                            apiErrorCount++
                             Log.e("FinPath", "Failed to parse historical SMS from $sender", e)
                         }
                     }
@@ -140,7 +154,12 @@ fun HomeScreen(navController: NavController) {
         }
 
         withContext(Dispatchers.Main) {
-            Toast.makeText(context, "Sync complete! Scanned $scannedCount, found $foundCount records.", Toast.LENGTH_LONG).show()
+            val toast = if (authErrorCount > 0) {
+                "Sync stopped by auth errors ($authErrorCount). Check backend Supabase JWT config."
+            } else {
+                "Sync complete! Scanned $scannedCount, found $foundCount records, errors $apiErrorCount."
+            }
+            Toast.makeText(context, toast, Toast.LENGTH_LONG).show()
             fetchData()
         }
     }
