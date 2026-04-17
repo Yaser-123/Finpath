@@ -67,13 +67,11 @@ function extractHeuristicTransaction(smsText) {
 
   const refMatch = text.match(/(?:utr|ref(?:erence)?|txn(?:\s*id)?)[:\s-]*([A-Za-z0-9\-]{6,})/i);
   const referenceNumber = refMatch?.[1] || null;
-
   return {
     amount,
     type,
     merchant_name: merchantName,
     reference_number: referenceNumber,
-    date: new Date().toISOString(),
   };
 }
 
@@ -150,6 +148,24 @@ SMS: ${sms_text}`;
     return res.status(200).json({ skipped: true, reason: 'unclean category data' });
   }
 
+  // Determine final transaction date
+  let transactionDate;
+  if (timestamp) {
+    const ts = Number(timestamp);
+    if (!isNaN(ts) && ts > 0) {
+      transactionDate = new Date(ts).toISOString();
+    }
+  }
+
+  // Fallback to Gemini/Heuristic extracted date, then to "now"
+  if (!transactionDate) {
+    transactionDate = (extracted && extracted.date) ? new Date(extracted.date).toISOString() : new Date().toISOString();
+  }
+
+  if (process.env.NODE_ENV !== 'production' || process.env.SMS_DEBUG === 'true') {
+    console.log(`[sms.parse] user=${req.user.id} sender=${sender} body_ts=${timestamp} final_date=${transactionDate}`);
+  }
+
   const baseInsert = {
     user_id:          req.user.id,
     source:           'sms',
@@ -157,7 +173,7 @@ SMS: ${sms_text}`;
     amount:           extracted.amount,
     merchant_name:    merchantName,
     category,
-    transaction_date: timestamp ? new Date(Number(timestamp)).toISOString() : (extracted.date || new Date().toISOString()),
+    transaction_date: transactionDate,
   };
 
   const fullInsert = {
