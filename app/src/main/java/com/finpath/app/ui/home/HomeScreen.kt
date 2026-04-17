@@ -10,7 +10,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -85,8 +88,26 @@ fun HomeScreen(navController: NavController) {
                     101
                 )
             }
+
+            val permanentlyDenied = activity != null &&
+                !ActivityCompat.shouldShowRequestPermissionRationale(activity, android.Manifest.permission.READ_SMS)
+
+            if (permanentlyDenied) {
+                val settingsIntent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:${context.packageName}")
+                )
+                settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(settingsIntent)
+            }
+
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, "SMS permission required. Please allow and sync again.", Toast.LENGTH_LONG).show()
+                val msg = if (permanentlyDenied) {
+                    "SMS permission is blocked. Enable SMS in App Settings, then sync again."
+                } else {
+                    "SMS permission required. Please allow and sync again."
+                }
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
             }
             return
         }
