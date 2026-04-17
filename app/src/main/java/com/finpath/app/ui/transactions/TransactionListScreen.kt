@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -52,7 +52,7 @@ fun TransactionListScreen(navController: NavController) {
                 title = { Text("Transactions") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface900, titleContentColor = White)
@@ -72,7 +72,7 @@ fun TransactionListScreen(navController: NavController) {
             LazyColumn(modifier = Modifier.padding(padding).fillMaxSize()) {
                 items(transactions) { tx ->
                     TransactionRow(tx)
-                    Divider(color = Surface800)
+                    HorizontalDivider(color = Surface800)
                 }
             }
         }
@@ -113,3 +113,4 @@ fun TransactionRow(tx: TransactionItem) {
         )
     }
 }
+

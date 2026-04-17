@@ -10,8 +10,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,7 +72,7 @@ fun HomeScreen(navController: NavController) {
                 onClick = { navController.navigate(Screen.Chat.route) },
                 containerColor = Indigo500
             ) {
-                Icon(Icons.Default.Chat, "Chat")
+                Icon(Icons.AutoMirrored.Filled.Chat, "Chat")
             }
         },
         containerColor = Surface900
@@ -135,7 +135,7 @@ fun HomeScreen(navController: NavController) {
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Surface700)
                     ) {
-                        Icon(Icons.Default.List, null)
+                        Icon(Icons.AutoMirrored.Filled.List, null)
                         Spacer(Modifier.width(8.dp))
                         Text("History")
                     }
@@ -224,3 +224,4 @@ fun HomeScreen(navController: NavController) {
         }
     }
 }
+

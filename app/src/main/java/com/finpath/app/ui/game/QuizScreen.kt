@@ -2,7 +2,7 @@ package com.finpath.app.ui.game
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +20,7 @@ fun QuizScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = { Text("Knowledge Quiz") },
-                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.Default.ArrowBack, "Back") } },
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = {
                     TextButton(onClick = { navController.navigate(Screen.Tier.route) }) {
                         Text("My Tier", color = Amber500)
@@ -54,7 +54,7 @@ fun TierScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = { Text("My Tier") },
-                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.Default.ArrowBack, "Back") } },
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface900, titleContentColor = White)
             )
         },
@@ -75,3 +75,4 @@ fun TierScreen(navController: NavController) {
         }
     }
 }
+
