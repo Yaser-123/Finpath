@@ -38,6 +38,17 @@ function isTrustedSender(sender) {
   return KNOWN_SENDERS.some(s => upper.includes(s));
 }
 
+function hasFinancialHint(text) {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  const hints = [
+    'upi', 'utr', 'imps', 'neft', 'rtgs', 'debited', 'credited',
+    'spent', 'received', 'withdrawn', 'deposited', 'txn', 'transaction',
+    'payment', 'inr', 'rs', 'a/c', 'account', 'balance'
+  ];
+  return hints.some(h => lower.includes(h));
+}
+
 /**
  * POST /api/v1/sms/parse
  * Body: { sms_text: string, sender: string }
@@ -49,8 +60,8 @@ router.post('/parse', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'sms_text is required' });
   }
 
-  if (!isTrustedSender(sender)) {
-    return res.status(200).json({ skipped: true, reason: 'sender not a known Indian bank' });
+  if (!isTrustedSender(sender) && !hasFinancialHint(sms_text)) {
+    return res.status(200).json({ skipped: true, reason: 'not recognized as financial sms' });
   }
 
   const prompt = `Extract from this UPI/bank SMS: merchant name, amount (number only), transaction type (credit or debit), date, and reference/UTR number.

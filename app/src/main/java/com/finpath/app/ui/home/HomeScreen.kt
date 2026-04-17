@@ -10,7 +10,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.finpath.app.SupabaseClient
 import com.finpath.app.data.remote.ApiClient
@@ -18,6 +21,7 @@ import com.finpath.app.data.remote.DashboardResponse
 import com.finpath.app.data.remote.SmsParseRequest
 import com.finpath.app.ui.navigation.Screen
 import com.finpath.app.ui.theme.*
+import com.finpath.app.util.SmsHeuristics
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -65,56 +69,78 @@ fun HomeScreen(navController: NavController) {
     }
 
     suspend fun syncSmsHistory() {
+        val hasReadSms = ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.READ_SMS
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasReadSms) {
+            val activity = context as? android.app.Activity
+            if (activity != null) {
+                ActivityCompat.requestPermissions(
+                    activity,
+                    arrayOf(android.Manifest.permission.READ_SMS, android.Manifest.permission.RECEIVE_SMS),
+                    101
+                )
+            }
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "SMS permission required. Please allow and sync again.", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+
         withContext(Dispatchers.Main) {
             Toast.makeText(context, "Scanning last 500 messages...", Toast.LENGTH_SHORT).show()
         }
-        
+
         var foundCount = 0
+        var scannedCount = 0
         withContext(Dispatchers.IO) {
             val session = SupabaseClient.client.auth.currentSessionOrNull() ?: return@withContext
             val authHeader = "Bearer ${session.accessToken}"
-            
-            val knownSenders = listOf(
-                "HDFC", "HDFCBK", "SBIINB", "SBI", "ICICI", "ICICIB", "AXISBK", "AXIS",
-                "KOTAKB", "KOTAK", "PAYTM", "GPAY", "PHONEPE", "YESBNK", "IDBIBK",
-                "PNBSMS", "BOBIBD", "CANBNK", "UNIONB", "CENTBK", "INDBNK", "FEDBNK",
-                "RBLBNK", "AUBANK", "UJJIVN", "BANDHN", "BOIIND"
-            )
 
-            val cursor = context.contentResolver.query(
-                Telephony.Sms.Inbox.CONTENT_URI,
-                arrayOf(Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE),
-                null, null, Telephony.Sms.DATE + " DESC"
-            )
+            try {
+                val cursor = context.contentResolver.query(
+                    Telephony.Sms.Inbox.CONTENT_URI,
+                    arrayOf(Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE),
+                    null,
+                    null,
+                    Telephony.Sms.DATE + " DESC"
+                )
 
-            cursor?.use {
-                var scannedCount = 0
-                val addrIdx = it.getColumnIndex(Telephony.Sms.ADDRESS)
-                val bodyIdx = it.getColumnIndex(Telephony.Sms.BODY)
-                
-                // Scan up to 500 total messages deeply
-                while (it.moveToNext() && scannedCount < 500) {
-                    scannedCount++
-                    val sender = it.getString(addrIdx) ?: continue
-                    val normalizedSender = sender.uppercase().replace(Regex("[^A-Z0-9]"), "")
-                    
-                    if (knownSenders.any { s -> normalizedSender.contains(s) }) {
+                cursor?.use {
+                    val addrIdx = it.getColumnIndex(Telephony.Sms.ADDRESS)
+                    val bodyIdx = it.getColumnIndex(Telephony.Sms.BODY)
+
+                    if (addrIdx == -1 || bodyIdx == -1) {
+                        Log.e("FinPath", "SMS cursor missing expected columns")
+                        return@use
+                    }
+
+                    while (it.moveToNext() && scannedCount < 500) {
+                        scannedCount++
+                        val sender = it.getString(addrIdx) ?: continue
                         val body = it.getString(bodyIdx) ?: continue
+
+                        if (!SmsHeuristics.shouldParse(sender, body)) continue
+
                         try {
                             val result = ApiClient.api.parseSms(authHeader, SmsParseRequest(smsText = body, sender = sender))
-                            if (result.skipped != true) {
-                                foundCount++
-                            }
+                            if (result.skipped != true) foundCount++
                         } catch (e: Exception) {
                             Log.e("FinPath", "Failed to parse historical SMS from $sender", e)
                         }
                     }
                 }
+            } catch (se: SecurityException) {
+                Log.e("FinPath", "SMS permission denied while reading inbox", se)
+            } catch (e: Exception) {
+                Log.e("FinPath", "Failed to scan SMS inbox", e)
             }
         }
-        
+
         withContext(Dispatchers.Main) {
-            Toast.makeText(context, "Sync complete! Found $foundCount bank records.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Sync complete! Scanned $scannedCount, found $foundCount records.", Toast.LENGTH_LONG).show()
             fetchData()
         }
     }

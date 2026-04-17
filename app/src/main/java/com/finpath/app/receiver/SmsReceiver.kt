@@ -8,20 +8,13 @@ import android.util.Log
 import com.finpath.app.SupabaseClient
 import com.finpath.app.data.remote.ApiClient
 import com.finpath.app.data.remote.SmsParseRequest
+import com.finpath.app.util.SmsHeuristics
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class SmsReceiver : BroadcastReceiver() {
-
-    private val KNOWN_SENDERS = listOf(
-        "HDFC", "HDFCBK", "SBIINB", "SBI", "ICICI", "ICICIB", "AXISBK", "AXIS",
-        "KOTAKB", "KOTAK", "PAYTM", "GPAY", "PHONEPE", "YESBNK", "IDBIBK",
-        "PNBSMS", "BOBIBD", "CANBNK", "UNIONB", "CENTBK", "INDBNK", "FEDBNK",
-        "RBLBNK", "AUBANK", "UJJIVN", "BANDHN", "BOIIND", "AXISBK"
-    )
-
     override fun onReceive(context: Context?, intent: Intent?) {
         if (intent?.action == Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
             val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
@@ -29,17 +22,11 @@ class SmsReceiver : BroadcastReceiver() {
                 val sender = sms.displayOriginatingAddress ?: continue
                 val body = sms.displayMessageBody ?: continue
 
-                if (isTrustedSender(sender)) {
-                    // Send to backend for parsing
+                if (SmsHeuristics.shouldParse(sender, body)) {
                     processSms(sender, body)
                 }
             }
         }
-    }
-
-    private fun isTrustedSender(sender: String): Boolean {
-        val upper = sender.uppercase().replace(Regex("[^A-Z0-9]"), "")
-        return KNOWN_SENDERS.any { upper.contains(it) }
     }
 
     private fun processSms(sender: String, body: String) {
