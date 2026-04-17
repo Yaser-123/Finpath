@@ -18,6 +18,7 @@ import com.finpath.app.ui.home.HomeScreen
 import com.finpath.app.ui.settings.SettingsScreen
 import com.finpath.app.ui.transactions.AddTransactionScreen
 import com.finpath.app.ui.transactions.TransactionListScreen
+import com.finpath.app.ui.wealth.InvestmentsScreen
 import com.finpath.app.ui.wealth.WealthScreen
 
 @Composable
@@ -40,6 +41,7 @@ fun FinPathNavGraph(navController: NavHostController) {
         }
         composable(Screen.Chat.route)           { ChatScreen(navController) }
         composable(Screen.Wealth.route)         { WealthScreen(navController) }
+        composable(Screen.Investments.route)    { InvestmentsScreen(navController) }
         composable(Screen.Quiz.route)           { QuizScreen(navController) }
         composable(Screen.Tier.route)           { TierScreen(navController) }
         composable(Screen.Settings.route)       { SettingsScreen(navController) }

@@ -112,6 +112,55 @@ data class HealthResponse(
     @SerializedName("timestamp") val timestamp: String?
 )
 
+data class SpendingInsight(
+    @SerializedName("category") val category: String?,
+    @SerializedName("current_spend") val currentSpend: Double?,
+    @SerializedName("suggested_cap") val suggestedCap: Double?,
+    @SerializedName("saving_tip") val savingTip: String?,
+    @SerializedName("priority") val priority: String?
+)
+
+data class SpendingAnalysisResponse(
+    @SerializedName("insights") val insights: List<SpendingInsight> = emptyList(),
+    @SerializedName("summary") val summary: String? = null
+)
+
+data class InvestmentSuggestionRequest(
+    @SerializedName("monthly_investable_amount") val monthlyInvestableAmount: Double
+)
+
+data class InvestmentSuggestion(
+    @SerializedName("ticker") val ticker: String?,
+    @SerializedName("asset_type") val assetType: String?,
+    @SerializedName("signal") val signal: String?,
+    @SerializedName("sentiment") val sentiment: String?,
+    @SerializedName("summary") val summary: String?,
+    @SerializedName("allocation_pct") val allocationPct: Double?,
+    @SerializedName("risk") val risk: String?
+)
+
+data class MarketHeadline(
+    @SerializedName("title") val title: String?,
+    @SerializedName("link") val link: String?,
+    @SerializedName("snippet") val snippet: String?
+)
+
+data class InvestmentSuggestionResponse(
+    @SerializedName("suggestions") val suggestions: List<InvestmentSuggestion> = emptyList(),
+    @SerializedName("market_note") val marketNote: String? = null,
+    @SerializedName("headlines") val headlines: List<MarketHeadline> = emptyList()
+)
+
+data class WealthAllocationResponse(
+    @SerializedName("month") val month: String? = null,
+    @SerializedName("total_income") val totalIncome: Double? = null,
+    @SerializedName("ring_fenced_amount") val ringFencedAmount: Double? = null,
+    @SerializedName("static_saving") val staticSaving: Double? = null,
+    @SerializedName("dynamic_saving") val dynamicSaving: Double? = null,
+    @SerializedName("notes") val notes: String? = null,
+    @SerializedName("message") val message: String? = null
+)
+
 data class TransactionItem(
     @SerializedName("id")               val id: String,
     @SerializedName("type")             val type: String,
@@ -172,6 +221,23 @@ interface FinPathApi {
         @Header("Authorization") auth: String,
         @Body request: ChatRequest
     ): ChatResponse
+
+    @POST("api/v1/agent/spending-analysis")
+    suspend fun getSpendingAnalysis(
+        @Header("Authorization") auth: String,
+        @Body request: Map<String, String> = emptyMap()
+    ): SpendingAnalysisResponse
+
+    @POST("api/v1/agent/investment-suggestions")
+    suspend fun getInvestmentSuggestions(
+        @Header("Authorization") auth: String,
+        @Body request: InvestmentSuggestionRequest
+    ): InvestmentSuggestionResponse
+
+    @GET("api/v1/wealth/summary")
+    suspend fun getWealthSummary(
+        @Header("Authorization") auth: String
+    ): WealthAllocationResponse
 }
 
 // ─── Singleton Retrofit Instance ─────────────────────────────────────────────
