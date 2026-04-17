@@ -4,6 +4,36 @@ const { authenticate } = require('../middleware/auth');
 const { supabase } = require('../lib/supabase');
 const { generateContent, buildSystemInstruction } = require('../lib/gemini');
 
+function buildRuleBasedReply(message, actionTaken, actionResult, profile, goals, recentTxns) {
+  const lowerMsg = (message || '').toLowerCase();
+
+  if (actionTaken === 'spending_summary' && actionResult?.spending_by_category) {
+    const pairs = Object.entries(actionResult.spending_by_category)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 2)
+      .map(([cat, amt]) => `${cat}: INR ${Math.round(Number(amt || 0))}`);
+    if (pairs.length) {
+      return `Your top expense buckets are ${pairs.join(' and ')}. Try reducing the highest one by 10-15% this month and track weekly.`;
+    }
+  }
+
+  if (lowerMsg.includes('goal') || lowerMsg.includes('save')) {
+    const activeGoals = (goals || []).slice(0, 2).map((g) => `${g.title} (INR ${Math.round(g.current_amount || 0)}/INR ${Math.round(g.target_amount || 0)})`);
+    if (activeGoals.length) {
+      return `You are currently tracking ${activeGoals.join(' and ')}. If you share a target date, I can break it into monthly savings milestones.`;
+    }
+    return 'You do not have an active goal yet. Tell me what you want to save for and by when, and I will draft a practical plan.';
+  }
+
+  const debits = (recentTxns || []).filter((t) => t.type === 'debit');
+  const credits = (recentTxns || []).filter((t) => t.type === 'credit');
+  const debitSum = debits.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+  const creditSum = credits.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+  const incomeHint = profile?.monthly_income ? `Your recorded monthly income is INR ${Math.round(profile.monthly_income)}.` : '';
+
+  return `${incomeHint} Based on recent activity, credits are INR ${Math.round(creditSum)} and debits are INR ${Math.round(debitSum)}. Ask me for a spending cap, goal plan, or investment split and I will generate it.`.trim();
+}
+
 /**
  * POST /api/v1/chat
  * Body: { message: string, conversation_history: [] }
@@ -95,9 +125,7 @@ Respond helpfully. If an action was taken, acknowledge it and confirm with the u
     const reply = await generateContent(contextPrompt, '', false);
     return res.json({ reply, action_taken, action_result });
   } catch (err) {
-    const fallbackReply = action_taken === 'spending_summary'
-      ? 'I could not run full AI chat now, but your recent spending summary is ready. I suggest reducing your top expense category by 10-15% this month.'
-      : 'I am temporarily unable to generate an AI reply. Your data is safe. Please retry in a few seconds.';
+    const fallbackReply = buildRuleBasedReply(message, action_taken, action_result, profile, goals, recentTxns);
     return res.json({ reply: fallbackReply, action_taken, action_result, degraded_mode: true });
   }
 });

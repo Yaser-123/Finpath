@@ -2,6 +2,13 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+const DEFAULT_MODELS = [
+  process.env.GEMINI_MODEL,
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+].filter(Boolean);
+
 /**
  * Get a Gemini model instance.
  * @param {string} [modelName] - Override the default model name.
@@ -27,13 +34,28 @@ Always respond in English. For monetary values always use ₹ symbol.`;
  * Run a Gemini prompt with a system instruction.
  */
 async function generateContent(prompt, systemInstruction = '', parseJSON = false) {
-  const model = getModel();
   const fullPrompt = systemInstruction
     ? `${systemInstruction}\n\n${prompt}`
     : prompt;
 
-  const result = await model.generateContent(fullPrompt);
-  const text = result.response.text().trim();
+  let text = '';
+  let lastError;
+
+  for (const modelName of DEFAULT_MODELS) {
+    try {
+      const model = getModel(modelName);
+      const result = await model.generateContent(fullPrompt);
+      text = result.response.text().trim();
+      break;
+    } catch (err) {
+      lastError = err;
+      console.warn(`[gemini] model ${modelName} failed: ${err.message}`);
+    }
+  }
+
+  if (!text) {
+    throw new Error(lastError?.message || 'All Gemini model attempts failed');
+  }
 
   if (parseJSON) {
     const cleaned = text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();

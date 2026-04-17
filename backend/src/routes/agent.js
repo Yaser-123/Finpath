@@ -74,6 +74,81 @@ function fallbackInvestmentSuggestions(monthlyInvestableAmount = 5000) {
   };
 }
 
+function buildSignalDrivenSuggestions(monthlyInvestableAmount = 5000, marketData = []) {
+  const clean = (marketData || []).filter((m) => !m.error && typeof m.current_price === 'number');
+  const stocks = clean
+    .filter((m) => String(m.ticker || '').endsWith('.NS') && !String(m.ticker).includes('GOLD'))
+    .sort((a, b) => {
+      const aMomentum = (a.current_price || 0) - (a.ma50 || a.current_price || 0);
+      const bMomentum = (b.current_price || 0) - (b.ma50 || b.current_price || 0);
+      return bMomentum - aMomentum;
+    })
+    .slice(0, 3);
+
+  const suggestions = [];
+
+  if (stocks.length) {
+    const perStock = Math.floor(50 / stocks.length);
+    stocks.forEach((s, idx) => {
+      const pct = idx === stocks.length - 1 ? 50 - perStock * (stocks.length - 1) : perStock;
+      suggestions.push({
+        ticker: s.ticker,
+        asset_type: 'stock',
+        signal: s.signal || 'hold',
+        sentiment: s.signal === 'buy' ? 'positive' : 'neutral',
+        summary: `Price ${s.current_price}, MA50 ${s.ma50 ?? '-'}, MA200 ${s.ma200 ?? '-'}.`,
+        allocation_pct: pct,
+        risk: 'medium',
+      });
+    });
+  } else {
+    suggestions.push({
+      ticker: 'NIFTYBEES.NS',
+      asset_type: 'stock',
+      signal: 'buy',
+      sentiment: 'neutral',
+      summary: 'Broad India index exposure for core allocation.',
+      allocation_pct: 50,
+      risk: 'medium',
+    });
+  }
+
+  suggestions.push({
+    ticker: 'GOLDBEES.NS',
+    asset_type: 'gold',
+    signal: 'buy',
+    sentiment: 'neutral',
+    summary: 'Gold hedge for volatility and macro uncertainty.',
+    allocation_pct: 25,
+    risk: 'low',
+  });
+
+  suggestions.push({
+    ticker: 'BTC-USD',
+    asset_type: 'crypto',
+    signal: 'hold',
+    sentiment: 'neutral',
+    summary: 'Optional high-volatility satellite allocation. Keep position small.',
+    allocation_pct: 10,
+    risk: 'high',
+  });
+
+  suggestions.push({
+    ticker: 'LIQUID',
+    asset_type: 'commodity',
+    signal: 'hold',
+    sentiment: 'neutral',
+    summary: `Keep ~15% (about INR ${Math.round(monthlyInvestableAmount * 0.15)}) as liquidity buffer.`,
+    allocation_pct: 15,
+    risk: 'low',
+  });
+
+  return {
+    suggestions,
+    market_note: 'Signal-driven allocation generated from current market trend data.',
+  };
+}
+
 /**
  * POST /api/v1/agent/spending-analysis
  */
@@ -171,9 +246,13 @@ Total allocation_pct must sum to 100. Bias toward buy signals. Include a brief s
 
   try {
     const result = await generateContent(prompt, sysInstruct, true);
+    const aiSuggestions = Array.isArray(result.suggestions) ? result.suggestions : [];
+    const normalizedSuggestions = aiSuggestions
+      .filter((s) => s && s.ticker && Number(s.allocation_pct) > 0)
+      .slice(0, 8);
 
     // Save to investments table
-    const rows = (result.suggestions || []).map(s => ({
+    const rows = normalizedSuggestions.map(s => ({
       user_id:          req.user.id,
       ticker:           s.ticker,
       asset_type:       s.asset_type,
@@ -187,14 +266,22 @@ Total allocation_pct must sum to 100. Bias toward buy signals. Include a brief s
       await supabase.from('investments').insert(rows);
     }
 
+    const responsePayload = normalizedSuggestions.length > 0
+      ? {
+          suggestions: normalizedSuggestions,
+          market_note: result.market_note || 'AI generated allocation based on your profile and market signals.',
+        }
+      : buildSignalDrivenSuggestions(monthly_investable_amount, marketData);
+
     return res.json({
-      suggestions: result.suggestions || [],
-      market_note: result.market_note || null,
+      ...responsePayload,
       market_data: marketData,
       headlines: newsSignals,
     });
   } catch (err) {
-    const fallback = fallbackInvestmentSuggestions(monthly_investable_amount);
+    const fallback = marketData.length
+      ? buildSignalDrivenSuggestions(monthly_investable_amount, marketData)
+      : fallbackInvestmentSuggestions(monthly_investable_amount);
     return res.json({
       ...fallback,
       market_data: marketData,
