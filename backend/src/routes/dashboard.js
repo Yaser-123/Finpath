@@ -45,8 +45,6 @@ router.get('/', authenticate, async (req, res) => {
   });
 
   const netCashFlow = totalIncome - totalExpenses;
-  const ringFencePct = profile?.data?.wealth_ring_fence_pct ?? 20;
-  const ringFenced = totalIncome * (ringFencePct / 100);
 
   const goalsSummary = (goals || []).map(g => ({
     id:           g.id,
@@ -55,19 +53,23 @@ router.get('/', authenticate, async (req, res) => {
     is_feasible:  g.is_feasible,
   }));
 
+  // Emergency Fund is strictly 5% of profile monthly income.
+  // We use the stored allocation record if available, otherwise calculate on the fly.
+  const emergencyFund = (profile?.monthly_income || 0) * 0.05;
+
   return res.json({
     net_cash_flow_this_month:  netCashFlow,
     total_income_this_month:   totalIncome,
     total_expenses_this_month: totalExpenses,
     goals_summary:             goalsSummary,
     wealth_this_month: {
-      ring_fenced: wealthThisMonth?.ring_fenced_amount || (profile?.monthly_income * 0.05) || 0,
+      ring_fenced: wealthThisMonth?.ring_fenced_amount || emergencyFund,
       static:      wealthThisMonth?.static_saving || 0,
       dynamic:     wealthThisMonth?.dynamic_saving || 0,
     },
     spending_by_category: Object.entries(spendingByCategory).map(([category, amount]) => ({ category, amount })),
-    tier:  profile?.data?.tier ?? 'bronze',
-    coins: profile?.data?.coins ?? 0,
+    tier:  profile?.tier || 'bronze',
+    coins: profile?.coins || 0,
   });
 });
 

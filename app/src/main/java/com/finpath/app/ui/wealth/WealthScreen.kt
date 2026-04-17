@@ -22,12 +22,15 @@ import com.finpath.app.data.remote.WealthAllocationResponse
 import com.finpath.app.data.remote.WealthConfigRequest
 import com.finpath.app.ui.navigation.Screen
 import com.finpath.app.ui.theme.*
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WealthScreen(navController: NavController) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var allocation by remember { mutableStateOf<WealthAllocationResponse?>(null) }
     var loading by remember { mutableStateOf(true) }
@@ -61,8 +64,10 @@ fun WealthScreen(navController: NavController) {
                     "Bearer ${session.accessToken}",
                     WealthConfigRequest(fdAmount = amount)
                 )
+                Toast.makeText(context, "Wealth allocation updated!", Toast.LENGTH_SHORT).show()
                 loadWealth()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Toast.makeText(context, "Failed to update: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 savingFd = false
             }
