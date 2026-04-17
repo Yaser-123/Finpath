@@ -3,6 +3,7 @@ package com.finpath.app.data.remote
 import com.finpath.app.BuildConfig
 import com.google.gson.annotations.SerializedName
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -104,6 +105,13 @@ data class ChatResponse(
     @SerializedName("action_result") val actionResult: Map<String, Any>?
 )
 
+data class HealthResponse(
+    @SerializedName("status") val status: String?,
+    @SerializedName("service") val service: String?,
+    @SerializedName("version") val version: String?,
+    @SerializedName("timestamp") val timestamp: String?
+)
+
 data class TransactionItem(
     @SerializedName("id")               val id: String,
     @SerializedName("type")             val type: String,
@@ -122,6 +130,9 @@ data class TransactionListResponse(
 // ─── Retrofit API Interface ──────────────────────────────────────────────────
 
 interface FinPathApi {
+
+    @GET("health")
+    suspend fun getHealth(): HealthResponse
 
     @POST("api/v1/sms/parse")
     suspend fun parseSms(
@@ -170,7 +181,20 @@ object ApiClient {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
+    private val ngrokBypassInterceptor = okhttp3.Interceptor { chain ->
+        val original = chain.request()
+        val host = original.url.host
+
+        val requestBuilder: Request.Builder = original.newBuilder()
+        if (host.contains("ngrok", ignoreCase = true)) {
+            requestBuilder.header("ngrok-skip-browser-warning", "true")
+        }
+
+        chain.proceed(requestBuilder.build())
+    }
+
     private val httpClient = OkHttpClient.Builder()
+        .addInterceptor(ngrokBypassInterceptor)
         .addInterceptor(loggingInterceptor)
         .build()
 

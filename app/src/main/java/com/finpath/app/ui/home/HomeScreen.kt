@@ -15,6 +15,7 @@ import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
+import com.finpath.app.BuildConfig
 import com.finpath.app.SupabaseClient
 import com.finpath.app.data.remote.ApiClient
 import com.finpath.app.data.remote.DashboardResponse
@@ -99,6 +100,20 @@ fun HomeScreen(navController: NavController) {
         var apiErrorCount = 0
         var authErrorCount = 0
         withContext(Dispatchers.IO) {
+            try {
+                ApiClient.api.getHealth()
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        "Backend unreachable at ${BuildConfig.BACKEND_URL}. Check ngrok and rebuild app.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                Log.e("FinPath", "Backend health check failed", e)
+                return@withContext
+            }
+
             val session = SupabaseClient.client.auth.currentSessionOrNull()
             if (session == null) {
                 withContext(Dispatchers.Main) {

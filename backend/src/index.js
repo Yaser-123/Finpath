@@ -54,9 +54,17 @@ app.use((err, req, res, next) => {
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
+  const envStatus = {
+    SUPABASE_URL: !!process.env.SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_JWT_SECRET: !!process.env.SUPABASE_JWT_SECRET,
+    GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
+  };
+
   console.log(`\n🚀 FinPath backend running on port ${PORT}`);
   console.log(`   Environment : ${process.env.NODE_ENV}`);
   console.log(`   Gemini model: ${process.env.GEMINI_MODEL}`);
+  console.log(`   Env status  : ${JSON.stringify(envStatus)}`);
   console.log(`   Health check: http://localhost:${PORT}/health\n`);
 });
 
