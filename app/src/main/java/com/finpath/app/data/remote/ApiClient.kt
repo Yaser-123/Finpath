@@ -5,6 +5,7 @@ import com.google.gson.annotations.SerializedName
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
+import java.util.concurrent.TimeUnit
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
@@ -161,6 +162,22 @@ data class WealthAllocationResponse(
     @SerializedName("message") val message: String? = null
 )
 
+data class ProfileResponse(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("full_name") val fullName: String? = null,
+    @SerializedName("monthly_income") val monthlyIncome: Double? = null,
+    @SerializedName("occupation") val occupation: String? = null,
+    @SerializedName("wealth_ring_fence_pct") val wealthRingFencePct: Double? = null,
+    @SerializedName("tier") val tier: String? = null,
+    @SerializedName("coins") val coins: Int? = null
+)
+
+data class ProfileUpdateRequest(
+    @SerializedName("monthly_income") val monthlyIncome: Double? = null,
+    @SerializedName("occupation") val occupation: String? = null,
+    @SerializedName("wealth_ring_fence_pct") val wealthRingFencePct: Double? = null
+)
+
 data class TransactionItem(
     @SerializedName("id")               val id: String,
     @SerializedName("type")             val type: String,
@@ -238,6 +255,17 @@ interface FinPathApi {
     suspend fun getWealthSummary(
         @Header("Authorization") auth: String
     ): WealthAllocationResponse
+
+    @GET("api/v1/profile")
+    suspend fun getProfile(
+        @Header("Authorization") auth: String
+    ): ProfileResponse
+
+    @PUT("api/v1/profile")
+    suspend fun updateProfile(
+        @Header("Authorization") auth: String,
+        @Body request: ProfileUpdateRequest
+    ): ProfileResponse
 }
 
 // ─── Singleton Retrofit Instance ─────────────────────────────────────────────
@@ -262,6 +290,9 @@ object ApiClient {
     private val httpClient = OkHttpClient.Builder()
         .addInterceptor(ngrokBypassInterceptor)
         .addInterceptor(loggingInterceptor)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .build()
 
     val api: FinPathApi by lazy {

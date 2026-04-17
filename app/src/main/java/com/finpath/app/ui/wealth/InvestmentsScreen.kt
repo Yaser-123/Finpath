@@ -56,6 +56,7 @@ import com.finpath.app.ui.theme.Surface900
 import com.finpath.app.ui.theme.White
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,16 +84,26 @@ fun InvestmentsScreen(navController: NavController) {
                 }
 
                 val authHeader = "Bearer ${session.accessToken}"
-                val spending = ApiClient.api.getSpendingAnalysis(authHeader)
-                val invest = ApiClient.api.getInvestmentSuggestions(
-                    authHeader,
-                    InvestmentSuggestionRequest(investable)
-                )
+                try {
+                    val spending = ApiClient.api.getSpendingAnalysis(authHeader)
+                    spendingInsights = spending.insights
+                    if (spending.summary != null && spending.insights.isEmpty()) {
+                        marketNote = spending.summary
+                    }
+                } catch (_: Exception) {
+                }
 
-                spendingInsights = spending.insights
-                suggestions = invest.suggestions
-                headlines = invest.headlines
-                marketNote = invest.marketNote
+                try {
+                    val invest = ApiClient.api.getInvestmentSuggestions(
+                        authHeader,
+                        InvestmentSuggestionRequest(investable)
+                    )
+                    suggestions = invest.suggestions
+                    headlines = invest.headlines
+                    marketNote = invest.marketNote ?: marketNote
+                } catch (e: HttpException) {
+                    error = "Failed to load investment suggestions (${e.code()})"
+                }
             } catch (e: Exception) {
                 error = e.message ?: "Failed to load investment intelligence"
             } finally {

@@ -51,6 +51,7 @@ app.use(`${BASE}/agent`,        require('./routes/agent'));
 app.use(`${BASE}/chat`,         require('./routes/chat'));
 app.use(`${BASE}/wealth`,       require('./routes/wealth'));
 app.use(`${BASE}/game`,         require('./routes/game'));
+app.use(`${BASE}/profile`,      require('./routes/profile'));
 
 // Tier route (re-exported from game router for URL semantics)
 app.use(`${BASE}/user`,         require('./routes/game'));

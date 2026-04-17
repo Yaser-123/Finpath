@@ -5,7 +5,7 @@ const { supabase } = require('../lib/supabase');
 const { generateContent, buildSystemInstruction } = require('../lib/gemini');
 const { fetchMarketData } = require('../services/yfinance');
 const { searchSerper } = require('../services/serper');
-const { normalizeCategory } = require('../services/category');
+const { normalizeCategory, isCleanMerchant } = require('../services/category');
 
 function buildHeuristicSpendingInsights(categoryTotals) {
   const entries = Object.entries(categoryTotals)
@@ -154,21 +154,34 @@ function buildSignalDrivenSuggestions(monthlyInvestableAmount = 5000, marketData
  */
 router.post('/spending-analysis', authenticate, async (req, res) => {
   const since = new Date();
-  since.setDate(since.getDate() - 30);
+  since.setDate(since.getDate() - 90);
 
-  const { data: txns } = await supabase
+  let { data: txns } = await supabase
     .from('transactions')
-    .select('category, amount, type')
+    .select('category, amount, type, merchant_name, source, transaction_date')
     .eq('user_id', req.user.id)
     .eq('type', 'debit')
     .gte('transaction_date', since.toISOString());
 
+  if (!txns || txns.length === 0) {
+    const { data: fallbackTxns } = await supabase
+      .from('transactions')
+      .select('category, amount, type, merchant_name, source, transaction_date')
+      .eq('user_id', req.user.id)
+      .eq('type', 'debit')
+      .order('transaction_date', { ascending: false })
+      .limit(300);
+    txns = fallbackTxns || [];
+  }
+
   const categoryTotals = {};
   let totalDebit = 0;
-  (txns || []).forEach(t => {
+  (txns || [])
+    .filter((t) => t.source !== 'sms' || isCleanMerchant(t.merchant_name))
+    .forEach(t => {
     const amount = parseFloat(t.amount || 0);
     totalDebit += amount;
-    const category = normalizeCategory(t.category, '');
+    const category = normalizeCategory(t.category, t.merchant_name || '');
     categoryTotals[category] = (categoryTotals[category] || 0) + amount;
   });
 

@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.finpath.app.SupabaseClient
@@ -20,16 +21,40 @@ import com.finpath.app.data.remote.ApiClient
 import com.finpath.app.data.remote.ChatMessage
 import com.finpath.app.data.remote.ChatRequest
 import com.finpath.app.ui.theme.*
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(navController: NavController) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("finpath_chat", android.content.Context.MODE_PRIVATE) }
+    val gson = remember { Gson() }
+
     var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
     var inputText by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        val raw = prefs.getString("messages", null)
+        if (!raw.isNullOrBlank()) {
+            try {
+                val type = object : TypeToken<List<ChatMessage>>() {}.type
+                messages = gson.fromJson(raw, type) ?: emptyList()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    LaunchedEffect(messages) {
+        try {
+            prefs.edit().putString("messages", gson.toJson(messages.takeLast(40))).apply()
+        } catch (_: Exception) {
+        }
+    }
 
     Scaffold(
         topBar = {

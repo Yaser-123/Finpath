@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { supabase } = require('../lib/supabase');
-const { normalizeCategory } = require('../services/category');
+const { normalizeCategory, isCleanMerchant } = require('../services/category');
 
 /**
  * GET /api/v1/transactions
@@ -28,10 +28,12 @@ router.get('/', authenticate, async (req, res) => {
   const { data, error, count } = await query;
   if (error) return res.status(500).json({ error: error.message });
 
-  const normalizedData = (data || []).map((tx) => ({
-    ...tx,
-    category: normalizeCategory(tx.category, tx.merchant_name || ''),
-  }));
+  const normalizedData = (data || [])
+    .filter((tx) => tx.source !== 'sms' || isCleanMerchant(tx.merchant_name))
+    .map((tx) => ({
+      ...tx,
+      category: normalizeCategory(tx.category, tx.merchant_name || ''),
+    }));
 
   return res.json({
     data: normalizedData,

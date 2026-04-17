@@ -4,7 +4,7 @@ const rateLimit = require('express-rate-limit');
 const { authenticate } = require('../middleware/auth');
 const { generateContent } = require('../lib/gemini');
 const { supabase } = require('../lib/supabase');
-const { normalizeCategory } = require('../services/category');
+const { normalizeCategory, isCleanMerchant, isLikelyTransactionalText } = require('../services/category');
 
 // Known Indian bank/UPI SMS senders (headers)
 const KNOWN_SENDERS = [
@@ -43,17 +43,18 @@ function hasFinancialHint(text) {
   return hints.some(h => lower.includes(h));
 }
 
+function inferTypeFromText(text) {
+  const lower = (text || '').toLowerCase();
+  if (/\b(debited|spent|paid|purchase|sent|dr)\b/.test(lower)) return 'debit';
+  if (/\b(credited|received|deposited|refund|cr)\b/.test(lower)) return 'credit';
+  return null;
+}
+
 function extractHeuristicTransaction(smsText) {
   const text = (smsText || '').replace(/\s+/g, ' ').trim();
   if (!text) return null;
 
-  const debitHints = ['debited', 'spent', 'paid', 'purchase', 'sent', 'dr'];
-  const creditHints = ['credited', 'received', 'deposited', 'refund', 'cr'];
-
-  const lower = text.toLowerCase();
-  const type = debitHints.some(h => lower.includes(h))
-    ? 'debit'
-    : (creditHints.some(h => lower.includes(h)) ? 'credit' : null);
+  const type = inferTypeFromText(text);
 
   const amountMatch = text.match(/(?:inr|rs\.?|₹)\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i)
     || text.match(/(?:amount|amt)\s*(?:is|:)?\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
@@ -74,14 +75,6 @@ function extractHeuristicTransaction(smsText) {
     reference_number: referenceNumber,
     date: new Date().toISOString(),
   };
-}
-
-function sanitizeMerchantName(name) {
-  const merchant = (name || '').trim();
-  if (!merchant) return null;
-  if (/^(unknown|n\/?a|null|none)$/i.test(merchant)) return null;
-  if (/stop\s*execution|do\s*not\s*reply|otp|password/i.test(merchant)) return null;
-  return merchant;
 }
 
 function sanitizeCategory(category) {
@@ -111,6 +104,10 @@ router.post('/parse', smsParseLimiter, authenticate, async (req, res) => {
     return res.status(200).json({ skipped: true, reason: 'not recognized as financial sms' });
   }
 
+  if (!isLikelyTransactionalText(sms_text)) {
+    return res.status(200).json({ skipped: true, reason: 'not transactional message' });
+  }
+
   const prompt = `Extract from this UPI/bank SMS: merchant name, amount (number only), transaction type (credit or debit), date, and reference/UTR number.
 Respond in JSON only: {"merchant_name":"...","amount":0,"type":"credit|debit","date":"ISO8601","reference_number":"...","category":"food|transport|utilities|shopping|health|entertainment|education|finance|other"}.
 If this is not a financial transaction SMS, respond: {"error":"not_financial"}.
@@ -132,11 +129,16 @@ SMS: ${sms_text}`;
     return res.status(200).json({ skipped: true, reason: 'not a financial transaction' });
   }
 
-  if (!extracted.amount || !extracted.type) {
+  if (!extracted.amount) {
     return res.status(422).json({ error: 'Could not extract transaction details', raw: extracted });
   }
 
-  const merchantName = sanitizeMerchantName(extracted.merchant_name);
+  extracted.type = extracted.type || inferTypeFromText(sms_text);
+  if (!['credit', 'debit'].includes(extracted.type)) {
+    return res.status(200).json({ skipped: true, reason: 'could not infer transaction type' });
+  }
+
+  const merchantName = isCleanMerchant(extracted.merchant_name) ? extracted.merchant_name.trim() : null;
   const category = sanitizeCategory(
     normalizeCategory(extracted.category, `${extracted.merchant_name || ''} ${sms_text || ''}`)
   );
