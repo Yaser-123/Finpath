@@ -19,7 +19,7 @@ class SmsReceiver : BroadcastReceiver() {
         "HDFC", "HDFCBK", "SBIINB", "SBI", "ICICI", "ICICIB", "AXISBK", "AXIS",
         "KOTAKB", "KOTAK", "PAYTM", "GPAY", "PHONEPE", "YESBNK", "IDBIBK",
         "PNBSMS", "BOBIBD", "CANBNK", "UNIONB", "CENTBK", "INDBNK", "FEDBNK",
-        "RBLBNK", "AUBANK", "UJJIVN", "BANDHN"
+        "RBLBNK", "AUBANK", "UJJIVN", "BANDHN", "BOIIND"
     )
 
     override fun onReceive(context: Context?, intent: Intent?) {

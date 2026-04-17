@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -8,6 +11,12 @@ android {
     namespace = "com.finpath.app"
     compileSdk = 35
 
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localProperties.load(FileInputStream(localPropertiesFile))
+    }
+
     defaultConfig {
         applicationId = "com.finpath.app"
         minSdk = 26
@@ -17,9 +26,9 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Supabase credentials injected from local.properties at build time
-        buildConfigField("String", "SUPABASE_URL",      "\"${project.findProperty("SUPABASE_URL")     ?: ""}\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${project.findProperty("SUPABASE_ANON_KEY") ?: ""}\"")
-        buildConfigField("String", "BACKEND_URL",       "\"${project.findProperty("BACKEND_URL")       ?: "http://10.0.2.2:3000"}\"")
+        buildConfigField("String", "SUPABASE_URL",      "\"${localProperties.getProperty("SUPABASE_URL")     ?: ""}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProperties.getProperty("SUPABASE_ANON_KEY") ?: ""}\"")
+        buildConfigField("String", "BACKEND_URL",       "\"${localProperties.getProperty("BACKEND_URL")       ?: "http://10.0.2.2:3000"}\"")
     }
 
     buildTypes {

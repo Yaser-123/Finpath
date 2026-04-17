@@ -31,6 +31,9 @@ class MainActivity : ComponentActivity() {
             )
         }
 
+        // Initialize Notification Channel for premium UX
+        com.finpath.app.util.NotificationHelper.createChannel(this)
+
         setContent {
             FinPathTheme {
                 Surface(

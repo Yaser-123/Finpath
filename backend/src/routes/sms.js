@@ -9,7 +9,7 @@ const KNOWN_SENDERS = [
   'HDFC', 'HDFCBK', 'SBIINB', 'SBI', 'ICICI', 'ICICIB', 'AXISBK', 'AXIS',
   'KOTAKB', 'KOTAK', 'PAYTM', 'GPAY', 'PHONEPE', 'YESBNK', 'IDBIBK',
   'PNBSMS', 'BOBIBD', 'CANBNK', 'UNIONB', 'CENTBK', 'INDBNK', 'FEDBNK',
-  'RBLBNK', 'AUBANK', 'UJJIVN', 'BANDHN'
+  'RBLBNK', 'AUBANK', 'UJJIVN', 'BANDHN', 'BOIIND'
 ];
 
 // Auto-category mapping from merchant / SMS keywords
