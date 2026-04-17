@@ -30,6 +30,50 @@ async function getUserContext(userId) {
   return profile || {};
 }
 
+function fallbackInvestmentSuggestions(monthlyInvestableAmount = 5000) {
+  return {
+    suggestions: [
+      {
+        ticker: 'NIFTYBEES.NS',
+        asset_type: 'stock',
+        signal: 'buy',
+        sentiment: 'neutral',
+        summary: 'Broad India index exposure for core allocation.',
+        allocation_pct: 45,
+        risk: 'medium',
+      },
+      {
+        ticker: 'GOLDBEES.NS',
+        asset_type: 'gold',
+        signal: 'buy',
+        sentiment: 'neutral',
+        summary: 'Gold hedge for volatility and macro uncertainty.',
+        allocation_pct: 25,
+        risk: 'low',
+      },
+      {
+        ticker: 'BTC-USD',
+        asset_type: 'crypto',
+        signal: 'hold',
+        sentiment: 'neutral',
+        summary: 'Optional high-volatility satellite allocation. Keep position small.',
+        allocation_pct: 10,
+        risk: 'high',
+      },
+      {
+        ticker: 'LIQUID',
+        asset_type: 'commodity',
+        signal: 'hold',
+        sentiment: 'neutral',
+        summary: `Keep ~20% (about INR ${Math.round(monthlyInvestableAmount * 0.2)}) in low-risk liquidity buffer.`,
+        allocation_pct: 20,
+        risk: 'low',
+      },
+    ],
+    market_note: 'Fallback allocation generated because live AI analysis was unavailable.',
+  };
+}
+
 /**
  * POST /api/v1/agent/spending-analysis
  */
@@ -150,7 +194,14 @@ Total allocation_pct must sum to 100. Bias toward buy signals. Include a brief s
       headlines: newsSignals,
     });
   } catch (err) {
-    return res.status(500).json({ error: 'Investment analysis failed', detail: err.message });
+    const fallback = fallbackInvestmentSuggestions(monthly_investable_amount);
+    return res.json({
+      ...fallback,
+      market_data: marketData,
+      headlines: newsSignals,
+      degraded_mode: true,
+      reason: err.message,
+    });
   }
 });
 
