@@ -150,11 +150,8 @@ SMS: ${sms_text}`;
     normalizeCategory(extracted.category, `${extracted.merchant_name || ''} ${sms_text || ''}`)
   );
 
-  if (!merchantName) {
-    return res.status(200).json({ skipped: true, reason: 'unclean merchant data' });
-  }
-  if (category === 'other') {
-    return res.status(200).json({ skipped: true, reason: 'unclean category data' });
+  if (!merchantName && !financialHint) {
+    return res.status(200).json({ skipped: true, reason: 'unclear merchant data' });
   }
 
   // Determine final transaction date

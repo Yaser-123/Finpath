@@ -118,7 +118,7 @@ fun HomeScreen(navController: NavController) {
         }
 
         withContext(Dispatchers.Main) {
-            Toast.makeText(context, "Scanning last 500 messages...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Scanning last 100 messages...", Toast.LENGTH_SHORT).show()
         }
 
         var foundCount = 0
@@ -168,7 +168,7 @@ fun HomeScreen(navController: NavController) {
                         return@use
                     }
 
-                    while (it.moveToNext() && scannedCount < 500) {
+                    while (it.moveToNext() && scannedCount < 100) {
                         scannedCount++
                         val sender = it.getString(addrIdx) ?: continue
                         val body = it.getString(bodyIdx) ?: continue
