@@ -3,7 +3,6 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { supabase } = require('../lib/supabase');
 const { generateContent, buildSystemInstruction } = require('../lib/gemini');
-const { analyseFeasibility } = require('../services/feasibility');
 
 /**
  * POST /api/v1/chat
@@ -96,7 +95,10 @@ Respond helpfully. If an action was taken, acknowledge it and confirm with the u
     const reply = await generateContent(contextPrompt, '', false);
     return res.json({ reply, action_taken, action_result });
   } catch (err) {
-    return res.status(500).json({ error: 'Chat failed', detail: err.message });
+    const fallbackReply = action_taken === 'spending_summary'
+      ? 'I could not run full AI chat now, but your recent spending summary is ready. I suggest reducing your top expense category by 10-15% this month.'
+      : 'I am temporarily unable to generate an AI reply. Your data is safe. Please retry in a few seconds.';
+    return res.json({ reply: fallbackReply, action_taken, action_result, degraded_mode: true });
   }
 });
 

@@ -4,6 +4,7 @@ const rateLimit = require('express-rate-limit');
 const { authenticate } = require('../middleware/auth');
 const { generateContent } = require('../lib/gemini');
 const { supabase } = require('../lib/supabase');
+const { normalizeCategory } = require('../services/category');
 
 // Known Indian bank/UPI SMS senders (headers)
 const KNOWN_SENDERS = [
@@ -13,21 +14,9 @@ const KNOWN_SENDERS = [
   'RBLBNK', 'AUBANK', 'UJJIVN', 'BANDHN', 'BOIIND'
 ];
 
-// Auto-category mapping from merchant / SMS keywords
-const CATEGORY_KEYWORDS = {
-  food:       ['swiggy', 'zomato', 'dominos', 'pizza', 'burger', 'restaurant', 'cafe', 'mcdonald', 'kfc', 'subway'],
-  transport:  ['uber', 'ola', 'rapido', 'metro', 'irctc', 'railway', 'petrol', 'fuel', 'namma metro'],
-  utilities:  ['electricity', 'bescom', 'tata power', 'airtel', 'jio', 'bsnl', 'vi ', 'vodafone', 'internet', 'water'],
-  shopping:   ['amazon', 'flipkart', 'myntra', 'ajio', 'meesho', 'nykaa', 'bigbasket', 'blinkit', 'zepto', 'instamart'],
-  health:     ['apollo', 'medicine', 'hospital', 'pharmacy', 'clinic', 'doctor', 'netmeds', '1mg'],
-  entertainment: ['netflix', 'hotstar', 'prime video', 'spotify', 'youtube', 'bookmyshow', 'pvr', 'inox'],
-  education:  ['udemy', 'coursera', 'byju', 'unacademy', 'college', 'school', 'tuition', 'fees'],
-  finance:    ['emi', 'loan', 'insurance', 'mutual fund', 'fd', 'rd', 'sip', 'credit card'],
-};
-
 const ALLOWED_CATEGORIES = new Set([
   'food', 'transport', 'utilities', 'shopping', 'health',
-  'entertainment', 'education', 'finance'
+  'entertainment', 'education', 'finance', 'fashion', 'travel'
 ]);
 
 const smsParseLimiter = rateLimit({
@@ -36,14 +25,6 @@ const smsParseLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-function autoCategory(text) {
-  const lower = (text || '').toLowerCase();
-  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (keywords.some(k => lower.includes(k))) return cat;
-  }
-  return 'other';
-}
 
 function isTrustedSender(sender) {
   if (!sender) return false;
@@ -156,7 +137,9 @@ SMS: ${sms_text}`;
   }
 
   const merchantName = sanitizeMerchantName(extracted.merchant_name);
-  const category = sanitizeCategory(extracted.category || autoCategory(extracted.merchant_name || sms_text));
+  const category = sanitizeCategory(
+    normalizeCategory(extracted.category, `${extracted.merchant_name || ''} ${sms_text || ''}`)
+  );
 
   if (!merchantName) {
     return res.status(200).json({ skipped: true, reason: 'unclean merchant data' });

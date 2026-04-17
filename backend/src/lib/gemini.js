@@ -36,9 +36,31 @@ async function generateContent(prompt, systemInstruction = '', parseJSON = false
   const text = result.response.text().trim();
 
   if (parseJSON) {
-    // Strip markdown code fences if present
     const cleaned = text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
-    return JSON.parse(cleaned);
+
+    try {
+      return JSON.parse(cleaned);
+    } catch (_) {
+      const objectStart = cleaned.indexOf('{');
+      const objectEnd = cleaned.lastIndexOf('}');
+      if (objectStart >= 0 && objectEnd > objectStart) {
+        const objectCandidate = cleaned.slice(objectStart, objectEnd + 1);
+        try {
+          return JSON.parse(objectCandidate);
+        } catch (_) {
+          // continue to array candidate
+        }
+      }
+
+      const arrayStart = cleaned.indexOf('[');
+      const arrayEnd = cleaned.lastIndexOf(']');
+      if (arrayStart >= 0 && arrayEnd > arrayStart) {
+        const arrayCandidate = cleaned.slice(arrayStart, arrayEnd + 1);
+        return JSON.parse(arrayCandidate);
+      }
+
+      throw new Error('Gemini returned non-JSON output');
+    }
   }
   return text;
 }

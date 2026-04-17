@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { supabase } = require('../lib/supabase');
+const { normalizeCategory } = require('../services/category');
 
 /**
  * GET /api/v1/dashboard
@@ -19,7 +20,7 @@ router.get('/', authenticate, async (req, res) => {
     { data: profile },
     { data: wealthThisMonth },
   ] = await Promise.all([
-    supabase.from('transactions').select('type,amount,category').eq('user_id', userId).gte('transaction_date', startOfMonth).lte('transaction_date', endOfMonth),
+    supabase.from('transactions').select('type,amount,category,merchant_name').eq('user_id', userId).gte('transaction_date', startOfMonth).lte('transaction_date', endOfMonth),
     supabase.from('goals').select('id,title,target_amount,current_amount,is_feasible').eq('user_id', userId).neq('status', 'abandoned'),
     supabase.from('profiles').select('tier,coins,monthly_income,wealth_ring_fence_pct').eq('id', userId).single(),
     supabase.from('wealth_allocations').select('*').eq('user_id', userId).eq('month', `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`).single(),
@@ -32,11 +33,12 @@ router.get('/', authenticate, async (req, res) => {
 
   transactions.forEach(t => {
     const amt = parseFloat(t.amount);
+    const effectiveCategory = normalizeCategory(t.category, t.merchant_name || '');
     if (t.type === 'credit') {
       totalIncome += amt;
     } else {
       totalExpenses += amt;
-      spendingByCategory[t.category || 'other'] = (spendingByCategory[t.category || 'other'] || 0) + amt;
+      spendingByCategory[effectiveCategory] = (spendingByCategory[effectiveCategory] || 0) + amt;
     }
   });
 

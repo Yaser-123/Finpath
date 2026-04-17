@@ -5,6 +5,25 @@ const { supabase } = require('../lib/supabase');
 const { generateContent, buildSystemInstruction } = require('../lib/gemini');
 const { fetchMarketData } = require('../services/yfinance');
 const { searchSerper } = require('../services/serper');
+const { normalizeCategory } = require('../services/category');
+
+function buildHeuristicSpendingInsights(categoryTotals) {
+  const entries = Object.entries(categoryTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  return entries.map(([category, currentSpend], idx) => {
+    const suggestedCap = Math.max(0, Math.round(currentSpend * 0.82));
+    const priority = idx < 2 ? 'high' : (idx < 4 ? 'medium' : 'low');
+    return {
+      category,
+      current_spend: Math.round(currentSpend),
+      suggested_cap: suggestedCap,
+      saving_tip: `Try capping ${category} spends to ~INR ${suggestedCap} next month and review weekly.`,
+      priority,
+    };
+  });
+}
 
 async function getUserContext(userId) {
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
@@ -30,7 +49,8 @@ router.post('/spending-analysis', authenticate, async (req, res) => {
   (txns || []).forEach(t => {
     const amount = parseFloat(t.amount || 0);
     totalDebit += amount;
-    categoryTotals[t.category || 'other'] = (categoryTotals[t.category || 'other'] || 0) + amount;
+    const category = normalizeCategory(t.category, '');
+    categoryTotals[category] = (categoryTotals[category] || 0) + amount;
   });
 
   if (totalDebit <= 0) {
@@ -56,7 +76,11 @@ Rank by largest potential saving. Be specific and actionable. 3-6 insights max.`
     const result = await generateContent(prompt, sysInstruct, true);
     return res.json(result);
   } catch (err) {
-    return res.status(500).json({ error: 'Analysis failed', detail: err.message });
+    const fallbackInsights = buildHeuristicSpendingInsights(categoryTotals);
+    return res.json({
+      insights: fallbackInsights,
+      summary: 'AI analysis unavailable right now. Showing rule-based spending insights.'
+    });
   }
 });
 
