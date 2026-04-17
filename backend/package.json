@@ -1,22 +1,29 @@
 {
-  "name": "sms-backend",
+  "name": "finpath-backend",
   "version": "1.0.0",
-  "description": "Simple SMS ingestion backend",
-  "main": "index.js",
+  "description": "FinPath personal finance OS – Node.js backend",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js"
-  },
-  "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "@supabase/supabase-js": "^2.103.0",
-    "axios": "^1.15.0",
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
-    "dotenv": "^17.4.1",
-    "express": "^4.19.2",
-    "node-cron": "^4.2.1"
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@supabase/supabase-js": "^2.49.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
+    "morgan": "^1.10.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
   }
 }
