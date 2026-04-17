@@ -105,9 +105,22 @@ fun TransactionRow(tx: TransactionItem) {
                 Text(
                     text = tx.transactionDate?.let { dateStr ->
                         try {
-                            val inFmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                            val formats = listOf(
+                                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                                "yyyy-MM-dd'T'HH:mm:ss",
+                                "yyyy-MM-dd"
+                            )
+                            var parsedDate: java.util.Date? = null
+                            for (fmt in formats) {
+                                try {
+                                    parsedDate = SimpleDateFormat(fmt, Locale.getDefault()).apply {
+                                        if (fmt.endsWith("'Z'")) timeZone = java.util.TimeZone.getTimeZone("UTC")
+                                    }.parse(dateStr)
+                                    if (parsedDate != null) break
+                                } catch (e: Exception) { /* continue */ }
+                            }
                             val outFmt = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
-                            inFmt.parse(dateStr)?.let { outFmt.format(it) } ?: dateStr.take(10)
+                            parsedDate?.let { outFmt.format(it) } ?: dateStr.take(10)
                         } catch(e: Exception) { dateStr.take(10) }
                     } ?: "",
                     style = MaterialTheme.typography.bodySmall, color = OnSurfaceMut

@@ -67,11 +67,20 @@ function extractHeuristicTransaction(smsText) {
 
   const refMatch = text.match(/(?:utr|ref(?:erence)?|txn(?:\s*id)?)[:\s-]*([A-Za-z0-9\-]{6,})/i);
   const referenceNumber = refMatch?.[1] || null;
+
+  const dateMatch = text.match(/\b(\d{1,2})[-/](\d{1,2}|[A-Za-z]{3})[-/](\d{2,4})\b/i);
+  let extractedDate = null;
+  if (dateMatch) {
+    const d = dateMatch[1], m = dateMatch[2], y = dateMatch[3];
+    extractedDate = new Date(`${m} ${d} ${y}`).toISOString();
+  }
+
   return {
     amount,
     type,
     merchant_name: merchantName,
     reference_number: referenceNumber,
+    date: extractedDate,
   };
 }
 
@@ -149,21 +158,24 @@ SMS: ${sms_text}`;
   }
 
   // Determine final transaction date
+  // PRIORITY: 1. Gemini/Heuristic extracted from text, 2. metadata timestamp, 3. now
   let transactionDate;
-  if (timestamp) {
+  
+  if (extracted && extracted.date && !isNaN(new Date(extracted.date).getTime())) {
+    transactionDate = new Date(extracted.date).toISOString();
+  } else if (timestamp) {
     const ts = Number(timestamp);
     if (!isNaN(ts) && ts > 0) {
       transactionDate = new Date(ts).toISOString();
     }
   }
 
-  // Fallback to Gemini/Heuristic extracted date, then to "now"
   if (!transactionDate) {
-    transactionDate = (extracted && extracted.date) ? new Date(extracted.date).toISOString() : new Date().toISOString();
+    transactionDate = new Date().toISOString();
   }
 
   if (process.env.NODE_ENV !== 'production' || process.env.SMS_DEBUG === 'true') {
-    console.log(`[sms.parse] user=${req.user.id} sender=${sender} body_ts=${timestamp} final_date=${transactionDate}`);
+    console.log(`[sms.parse] user=${req.user.id} sender=${sender} text_date=${extracted?.date} body_ts=${timestamp} final_date=${transactionDate}`);
   }
 
   const baseInsert = {
@@ -174,30 +186,15 @@ SMS: ${sms_text}`;
     merchant_name:    merchantName,
     category,
     transaction_date: transactionDate,
-  };
-
-  const fullInsert = {
-    ...baseInsert,
-    raw_sms: sms_text,
     reference_number: extracted.reference_number || null,
+    raw_sms: sms_text,
   };
 
-  let data;
-  let error;
-
-  ({ data, error } = await supabase
+  const { data, error } = await supabase
     .from('transactions')
-    .insert(fullInsert)
+    .upsert(baseInsert, { onConflict: 'reference_number', ignoreDuplicates: false })
     .select()
-    .single());
-
-  if (error && /raw_sms|reference_number/i.test(error.message || '')) {
-    ({ data, error } = await supabase
-      .from('transactions')
-      .insert(baseInsert)
-      .select()
-      .single());
-  }
+    .single();
 
   if (error) {
     if (error.code === '23505') {
