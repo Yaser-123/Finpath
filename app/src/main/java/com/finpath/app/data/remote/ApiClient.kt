@@ -82,7 +82,7 @@ data class GoalSummary(
 data class WealthSummary(
     @SerializedName("ring_fenced") val emergencyFund: Double,
     @SerializedName("static")      val fdSavings: Double,
-    @SerializedName("dynamic")     val dynamicSavings: Double
+    @SerializedName("dynamic")     val dynamicSaving: Double
 )
 
 data class CategorySpend(

@@ -314,7 +314,7 @@ fun HomeScreen(navController: NavController) {
                         Column {
                             Text("Generational Wealth", fontWeight = FontWeight.Bold, color = White)
                             Spacer(Modifier.height(4.dp))
-                            Text("₹${"%.2f".format(dashboardData?.wealth?.ringFenced ?: 0.0)} ring-fenced this month", color = OnSurfaceMut, style = MaterialTheme.typography.bodySmall)
+                            Text("₹${"%.2f".format(dashboardData?.wealth?.emergencyFund ?: 0.0)} for emergency fund", color = OnSurfaceMut, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
