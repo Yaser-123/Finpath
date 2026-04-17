@@ -8,36 +8,34 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.finpath.app.SupabaseClient
 import com.finpath.app.data.remote.ApiClient
 import com.finpath.app.data.remote.DashboardResponse
+import com.finpath.app.data.remote.SmsParseRequest
 import com.finpath.app.ui.navigation.Screen
 import com.finpath.app.ui.theme.*
 import io.github.jan.supabase.auth.auth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import android.provider.Telephony
+import android.util.Log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
+    val context = LocalContext.current
+    val pullToRefreshState = rememberPullToRefreshState()
     var dashboardData by remember { mutableStateOf<DashboardResponse?>(null) }
     var loading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
+    fun fetchData() {
         scope.launch {
+            loading = true
             try {
                 val session = SupabaseClient.client.auth.currentSessionOrNull()
                 if (session != null) {
@@ -45,11 +43,57 @@ fun HomeScreen(navController: NavController) {
                     dashboardData = ApiClient.api.getDashboard(authHeader)
                 }
             } catch (e: Exception) {
-                // Handle error
+                Log.e("FinPath", "Failed to fetch dashboard", e)
             } finally {
                 loading = false
             }
         }
+    }
+
+    suspend fun syncSmsHistory() {
+        withContext(Dispatchers.IO) {
+            val session = SupabaseClient.client.auth.currentSessionOrNull() ?: return@withContext
+            val authHeader = "Bearer ${session.accessToken}"
+            
+            val knownSenders = listOf(
+                "HDFC", "HDFCBK", "SBIINB", "SBI", "ICICI", "ICICIB", "AXISBK", "AXIS",
+                "KOTAKB", "KOTAK", "PAYTM", "GPAY", "PHONEPE", "YESBNK", "IDBIBK",
+                "PNBSMS", "BOBIBD", "CANBNK", "UNIONB", "CENTBK", "INDBNK", "FEDBNK",
+                "RBLBNK", "AUBANK", "UJJIVN", "BANDHN", "BOIIND"
+            )
+
+            val cursor = context.contentResolver.query(
+                Telephony.Sms.Inbox.CONTENT_URI,
+                arrayOf(Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE),
+                null, null, Telephony.Sms.DATE + " DESC"
+            )
+
+            cursor?.use {
+                var processedCount = 0
+                val addrIdx = it.getColumnIndex(Telephony.Sms.ADDRESS)
+                val bodyIdx = it.getColumnIndex(Telephony.Sms.BODY)
+                
+                while (it.moveToNext() && processedCount < 100) {
+                    val sender = it.getString(addrIdx) ?: continue
+                    val normalizedSender = sender.uppercase().replace(Regex("[^A-Z0-9]"), "")
+                    
+                    if (knownSenders.any { s -> normalizedSender.contains(s) }) {
+                        val body = it.getString(bodyIdx) ?: continue
+                        try {
+                            ApiClient.api.parseSms(authHeader, SmsParseRequest(smsText = body, sender = sender))
+                            processedCount++
+                        } catch (e: Exception) {
+                            Log.e("FinPath", "Failed to parse historical SMS from $sender", e)
+                        }
+                    }
+                }
+            }
+        }
+        fetchData()
+    }
+
+    LaunchedEffect(Unit) {
+        fetchData()
     }
 
     Scaffold(
@@ -61,6 +105,9 @@ fun HomeScreen(navController: NavController) {
                     titleContentColor = White
                 ),
                 actions = {
+                    IconButton(onClick = { scope.launch { syncSmsHistory() } }) {
+                        Icon(Icons.Default.Refresh, "Sync History")
+                    }
                     IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
                         Text(dashboardData?.tier?.take(1)?.uppercase() ?: "B")
                     }
@@ -77,15 +124,14 @@ fun HomeScreen(navController: NavController) {
         },
         containerColor = Surface900
     ) { padding ->
-        if (loading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else {
+        PullToRefreshBox(
+            isRefreshing = loading,
+            onRefresh = { fetchData() },
+            state = pullToRefreshState
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)

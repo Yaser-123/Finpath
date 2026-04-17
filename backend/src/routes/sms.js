@@ -53,8 +53,8 @@ router.post('/parse', authenticate, async (req, res) => {
     return res.status(200).json({ skipped: true, reason: 'sender not a known Indian bank' });
   }
 
-  const prompt = `Extract from this UPI/bank SMS: merchant name, amount (number only), transaction type (credit or debit), date.
-Respond in JSON only: {"merchant_name":"...","amount":0,"type":"credit|debit","date":"ISO8601","category":"food|transport|utilities|shopping|health|entertainment|education|finance|other"}.
+  const prompt = `Extract from this UPI/bank SMS: merchant name, amount (number only), transaction type (credit or debit), date, and reference/UTR number.
+Respond in JSON only: {"merchant_name":"...","amount":0,"type":"credit|debit","date":"ISO8601","reference_number":"...","category":"food|transport|utilities|shopping|health|entertainment|education|finance|other"}.
 If this is not a financial transaction SMS, respond: {"error":"not_financial"}.
 
 SMS: ${sms_text}`;
@@ -87,12 +87,17 @@ SMS: ${sms_text}`;
       merchant_name:    extracted.merchant_name || 'Unknown',
       category,
       raw_sms:          sms_text,
+      reference_number: extracted.reference_number || null,
       transaction_date: extracted.date || new Date().toISOString(),
     })
     .select()
     .single();
 
   if (error) {
+    // Handle uniqueness constraint violations as a 'skipped' message instead of a 500 error
+    if (error.code === '23505') {
+      return res.status(200).json({ skipped: true, reason: 'duplicate transaction' });
+    }
     return res.status(500).json({ error: 'Database insert failed', detail: error.message });
   }
 
