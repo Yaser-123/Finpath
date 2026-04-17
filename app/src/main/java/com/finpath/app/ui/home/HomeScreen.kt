@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
 import androidx.navigation.NavController
 import com.finpath.app.SupabaseClient
 import com.finpath.app.data.remote.ApiClient
@@ -64,6 +65,11 @@ fun HomeScreen(navController: NavController) {
     }
 
     suspend fun syncSmsHistory() {
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, "Scanning last 500 messages...", Toast.LENGTH_SHORT).show()
+        }
+        
+        var foundCount = 0
         withContext(Dispatchers.IO) {
             val session = SupabaseClient.client.auth.currentSessionOrNull() ?: return@withContext
             val authHeader = "Bearer ${session.accessToken}"
@@ -82,19 +88,23 @@ fun HomeScreen(navController: NavController) {
             )
 
             cursor?.use {
-                var processedCount = 0
+                var scannedCount = 0
                 val addrIdx = it.getColumnIndex(Telephony.Sms.ADDRESS)
                 val bodyIdx = it.getColumnIndex(Telephony.Sms.BODY)
                 
-                while (it.moveToNext() && processedCount < 100) {
+                // Scan up to 500 total messages deeply
+                while (it.moveToNext() && scannedCount < 500) {
+                    scannedCount++
                     val sender = it.getString(addrIdx) ?: continue
                     val normalizedSender = sender.uppercase().replace(Regex("[^A-Z0-9]"), "")
                     
                     if (knownSenders.any { s -> normalizedSender.contains(s) }) {
                         val body = it.getString(bodyIdx) ?: continue
                         try {
-                            ApiClient.api.parseSms(authHeader, SmsParseRequest(smsText = body, sender = sender))
-                            processedCount++
+                            val result = ApiClient.api.parseSms(authHeader, SmsParseRequest(smsText = body, sender = sender))
+                            if (result.skipped != true) {
+                                foundCount++
+                            }
                         } catch (e: Exception) {
                             Log.e("FinPath", "Failed to parse historical SMS from $sender", e)
                         }
@@ -102,7 +112,11 @@ fun HomeScreen(navController: NavController) {
                 }
             }
         }
-        fetchData()
+        
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, "Sync complete! Found $foundCount bank records.", Toast.LENGTH_LONG).show()
+            fetchData()
+        }
     }
 
     LaunchedEffect(Unit) {
