@@ -16,6 +16,19 @@ android {
     if (localPropertiesFile.exists()) {
         localProperties.load(FileInputStream(localPropertiesFile))
     }
+    val moduleProperties = Properties()
+    val modulePropertiesFile = project.file("local.properties")
+    if (modulePropertiesFile.exists()) {
+        moduleProperties.load(FileInputStream(modulePropertiesFile))
+    }
+
+    fun getProp(name: String, default: String = ""): String {
+        return project.findProperty(name)?.toString()
+            ?: System.getenv(name)
+            ?: moduleProperties.getProperty(name)
+            ?: localProperties.getProperty(name)
+            ?: default
+    }
 
     defaultConfig {
         applicationId = "com.finpath.app"
@@ -25,10 +38,10 @@ android {
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Supabase credentials injected from local.properties at build time
-        buildConfigField("String", "SUPABASE_URL",      "\"${localProperties.getProperty("SUPABASE_URL")     ?: ""}\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProperties.getProperty("SUPABASE_ANON_KEY") ?: ""}\"")
-        buildConfigField("String", "BACKEND_URL",       "\"${localProperties.getProperty("BACKEND_URL")       ?: "http://10.0.2.2:3000"}\"")
+        // Supabase credentials injected robustly from properties/env
+        buildConfigField("String", "SUPABASE_URL",      "\"${getProp("SUPABASE_URL")}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${getProp("SUPABASE_ANON_KEY")}\"")
+        buildConfigField("String", "BACKEND_URL",       "\"${getProp("BACKEND_URL", "http://10.0.2.2:3000")}\"")
     }
 
     buildTypes {
