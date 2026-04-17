@@ -24,6 +24,8 @@ import com.finpath.app.ui.theme.Surface900
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,10 +105,10 @@ fun SignUpScreen(navController: NavController) {
                             SupabaseClient.client.auth.signUpWith(Email) {
                                 this.email    = email.trim()
                                 this.password = password
-                                data          = mapOf(
-                                    "full_name"   to fullName,
-                                    "occupation"  to occupation
-                                )
+                                data          = buildJsonObject {
+                                    put("full_name", fullName)
+                                    put("occupation", occupation)
+                                }
                             }
                             navController.navigate(Screen.EmailVerify.route) {
                                 popUpTo(Screen.SignUp.route) { inclusive = true }
