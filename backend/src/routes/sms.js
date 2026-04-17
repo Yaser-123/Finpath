@@ -56,16 +56,14 @@ function extractHeuristicTransaction(smsText) {
 
   const type = inferTypeFromText(text);
 
-  const amountMatch = text.match(/(?:inr|rs\.?|₹)\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i)
-    || text.match(/(?:amount|amt)\s*(?:is|:)?\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
-
+  const amountMatch = text.match(/(?:inr|rs\.?|₹|amt|debited by|credited by)\s*[:]?\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
   const amount = amountMatch ? Number(String(amountMatch[1]).replace(/,/g, '')) : null;
-  if (!amount || !type) return null;
+  if (!amount || isNaN(amount) || !type) return null;
 
   const merchantMatch = text.match(/(?:to|at|from)\s+([A-Za-z0-9&._\- ]{2,40}?)(?:\.|,| on | via |\sUTR|\sRef|$)/i);
   const merchantName = merchantMatch?.[1]?.trim() || 'Unknown';
 
-  const refMatch = text.match(/(?:utr|ref(?:erence)?|txn(?:\s*id)?)[:\s-]*([A-Za-z0-9\-]{6,})/i);
+  const refMatch = text.match(/(?:utr|ref(?:erence)?|txn(?:\s*id)?|upi|info|id)[:\s-]*([A-Za-z0-9\-]{6,})/i);
   const referenceNumber = refMatch?.[1] || null;
 
   const dateMatch = text.match(/\b(\d{1,2})[-/](\d{1,2}|[A-Za-z]{3})[-/](\d{2,4})\b/i);
@@ -116,6 +114,7 @@ router.post('/parse', smsParseLimiter, authenticate, async (req, res) => {
   }
 
   const prompt = `Extract from this UPI/bank SMS: merchant name, amount (number only), transaction type (credit or debit), date, and reference/UTR number.
+IMPORTANT: Look for 12-digit numeric strings or alphanumeric codes after 'Ref', 'UTR', 'UPI', or 'Info' - these are reference numbers.
 Respond in JSON only: {"merchant_name":"...","amount":0,"type":"credit|debit","date":"ISO8601","reference_number":"...","category":"food|transport|utilities|shopping|health|entertainment|education|finance|other"}.
 If this is not a financial transaction SMS, respond: {"error":"not_financial"}.
 
