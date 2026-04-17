@@ -11,10 +11,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.content.Intent
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
+import android.app.Activity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
@@ -80,7 +83,7 @@ fun HomeScreen(navController: NavController) {
         ) == PackageManager.PERMISSION_GRANTED
 
         if (!hasReadSms) {
-            val activity = context as? android.app.Activity
+            val activity = context.findActivity()
             if (activity != null) {
                 ActivityCompat.requestPermissions(
                     activity,
@@ -377,5 +380,14 @@ fun HomeScreen(navController: NavController) {
             }
         }
     }
+}
+
+private fun Context.findActivity(): Activity? {
+    var current: Context? = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
 }
 
