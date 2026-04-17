@@ -51,10 +51,10 @@ fun GoalDetailScreen(navController: NavController, goalId: String) {
             TopAppBar(
                 title = { Text(goal?.title ?: "Goal Detail") },
                 navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface900, titleContentColor = White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface950, titleContentColor = White)
             )
         },
-        containerColor = Surface900
+        containerColor = Surface950
     ) { padding ->
         if (loading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -84,7 +84,7 @@ fun GoalDetailScreen(navController: NavController, goalId: String) {
 
                 // Progress Card
                 item {
-                    Card(colors = CardDefaults.cardColors(containerColor = Surface800)) {
+                    Card(colors = CardDefaults.cardColors(containerColor = Surface900)) {
                         Column(Modifier.padding(16.dp).fillMaxWidth()) {
                             Text("Progress", style = MaterialTheme.typography.labelLarge, color = OnSurfaceMut)
                             Spacer(Modifier.height(8.dp))
@@ -127,7 +127,7 @@ fun GoalDetailScreen(navController: NavController, goalId: String) {
 fun StepItem(step: GoalStep) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface800)
+        colors = CardDefaults.cardColors(containerColor = Surface900)
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Indigo500))

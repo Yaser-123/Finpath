@@ -14,7 +14,8 @@ import retrofit2.http.*
 
 data class SmsParseRequest(
     @SerializedName("sms_text") val smsText: String,
-    @SerializedName("sender")   val sender: String
+    @SerializedName("sender")   val sender: String,
+    @SerializedName("timestamp") val timestamp: Long? = null
 )
 
 data class ParsedTransaction(
@@ -68,8 +69,14 @@ data class DashboardResponse(
     @SerializedName("goals_summary")              val goalsSummary: List<GoalSummary>,
     @SerializedName("wealth_this_month")          val wealth: WealthSummary,
     @SerializedName("spending_by_category")       val spendingByCategory: List<CategorySpend>,
+    @SerializedName("spending_trend")             val spendingTrend: List<DailySpend>,
     @SerializedName("tier")                       val tier: String,
     @SerializedName("coins")                      val coins: Int
+)
+
+data class DailySpend(
+    @SerializedName("date")   val date: String,
+    @SerializedName("amount") val amount: Double
 )
 
 data class GoalSummary(

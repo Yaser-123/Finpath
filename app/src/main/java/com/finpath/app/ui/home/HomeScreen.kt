@@ -28,6 +28,7 @@ import com.finpath.app.data.remote.DashboardResponse
 import com.finpath.app.data.remote.SmsParseRequest
 import com.finpath.app.ui.navigation.Screen
 import com.finpath.app.ui.theme.*
+import com.finpath.app.ui.components.*
 import com.finpath.app.util.SmsHeuristics
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.Dispatchers
@@ -159,8 +160,9 @@ fun HomeScreen(navController: NavController) {
                 cursor?.use {
                     val addrIdx = it.getColumnIndex(Telephony.Sms.ADDRESS)
                     val bodyIdx = it.getColumnIndex(Telephony.Sms.BODY)
+                    val dateIdx = it.getColumnIndex(Telephony.Sms.DATE)
 
-                    if (addrIdx == -1 || bodyIdx == -1) {
+                    if (addrIdx == -1 || bodyIdx == -1 || dateIdx == -1) {
                         Log.e("FinPath", "SMS cursor missing expected columns")
                         return@use
                     }
@@ -169,11 +171,15 @@ fun HomeScreen(navController: NavController) {
                         scannedCount++
                         val sender = it.getString(addrIdx) ?: continue
                         val body = it.getString(bodyIdx) ?: continue
+                        val timestamp = it.getLong(dateIdx)
 
                         if (!SmsHeuristics.shouldParse(sender, body)) continue
 
                         try {
-                            val result = ApiClient.api.parseSms(authHeader, SmsParseRequest(smsText = body, sender = sender))
+                            val result = ApiClient.api.parseSms(
+                                authHeader, 
+                                SmsParseRequest(smsText = body, sender = sender, timestamp = timestamp)
+                            )
                             if (result.skipped != true) foundCount++
                         } catch (e: HttpException) {
                             apiErrorCount++
@@ -210,9 +216,9 @@ fun HomeScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("FinPath", fontWeight = FontWeight.Bold) },
+                title = { Text("FinPath", fontWeight = FontWeight.ExtraBold, fontSize = 22.sp) },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Surface900,
+                    containerColor = Surface950,
                     titleContentColor = White
                 ),
                 actions = {
@@ -233,7 +239,7 @@ fun HomeScreen(navController: NavController) {
                 Icon(Icons.AutoMirrored.Filled.Chat, "Chat")
             }
         },
-        containerColor = Surface900
+        containerColor = Surface950
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = loading,
@@ -247,32 +253,46 @@ fun HomeScreen(navController: NavController) {
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // Net Cash Flow Card
+                // Net Cash Flow + Trend Chart
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Surface800)
+                    colors = CardDefaults.cardColors(containerColor = Surface900),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = Brush.linearGradient(listOf(Indigo500, Indigo500.copy(0.1f))))
                 ) {
                     Column(Modifier.padding(20.dp)) {
-                        Text("Net Cash Flow (This Month)", style = MaterialTheme.typography.labelMedium, color = OnSurfaceMut)
-                        Spacer(Modifier.height(8.dp))
-                        val net = dashboardData?.netCashFlow ?: 0.0
-                        Text(
-                            "₹${"%.2f".format(net)}",
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = if (net >= 0) Emerald500 else Rose500
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column {
-                                Text("INCOME", style = MaterialTheme.typography.labelSmall, color = OnSurfaceMut)
-                                Text("₹${"%.2f".format(dashboardData?.totalIncome ?: 0.0)}", fontWeight = FontWeight.SemiBold, color = Emerald500)
+                                Text("Monthly Surplus", style = MaterialTheme.typography.labelMedium, color = OnSurfaceMut)
+                                val net = dashboardData?.netCashFlow ?: 0.0
+                                Text(
+                                    "₹${"%.2f".format(net)}",
+                                    style = MaterialTheme.typography.headlineLarge,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (net >= 0) Emerald500 else Rose500
+                                )
                             }
+                            // Mini Mini Stat
                             Column(horizontalAlignment = Alignment.End) {
                                 Text("EXPENSES", style = MaterialTheme.typography.labelSmall, color = OnSurfaceMut)
-                                Text("₹${"%.2f".format(dashboardData?.totalExpenses ?: 0.0)}", fontWeight = FontWeight.SemiBold, color = Rose500)
+                                Text("₹${"%.0f".format(dashboardData?.totalExpenses ?: 0.0)}", fontWeight = FontWeight.Bold, color = Rose500)
                             }
                         }
+                        
+                        Spacer(Modifier.height(16.dp))
+                        
+                        // Trend Chart
+                        SpendingTrendChart(data = dashboardData?.spendingTrend ?: emptyList())
+                    }
+                }
+
+                // Spending Breakdown
+                Text("Spending Insights", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = White)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Surface900)
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        CategoryDonutChart(data = dashboardData?.spendingByCategory ?: emptyList())
                     }
                 }
 
@@ -339,7 +359,7 @@ fun HomeScreen(navController: NavController) {
                                 modifier = Modifier
                                     .width(160.dp)
                                     .clickable { navController.navigate(Screen.GoalDetail.withId(goal.id)) },
-                                colors = CardDefaults.cardColors(containerColor = Surface800)
+                                colors = CardDefaults.cardColors(containerColor = Surface900)
                             ) {
                                 Column(Modifier.padding(16.dp)) {
                                     Text(goal.title, fontWeight = FontWeight.SemiBold, maxLines = 1, color = White)
@@ -363,7 +383,7 @@ fun HomeScreen(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { navController.navigate(Screen.Quiz.route) },
-                    colors = CardDefaults.cardColors(containerColor = Surface800)
+                    colors = CardDefaults.cardColors(containerColor = Surface900)
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp).fillMaxWidth(),

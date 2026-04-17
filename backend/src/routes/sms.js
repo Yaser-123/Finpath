@@ -88,7 +88,7 @@ function sanitizeCategory(category) {
  * Body: { sms_text: string, sender: string }
  */
 router.post('/parse', smsParseLimiter, authenticate, async (req, res) => {
-  const { sms_text, sender } = req.body;
+  const { sms_text, sender, timestamp } = req.body;
   const trustedSender = isTrustedSender(sender);
   const financialHint = hasFinancialHint(sms_text);
 
@@ -157,7 +157,7 @@ SMS: ${sms_text}`;
     amount:           extracted.amount,
     merchant_name:    merchantName,
     category,
-    transaction_date: extracted.date || new Date().toISOString(),
+    transaction_date: timestamp ? new Date(Number(timestamp)).toISOString() : (extracted.date || new Date().toISOString()),
   };
 
   const fullInsert = {

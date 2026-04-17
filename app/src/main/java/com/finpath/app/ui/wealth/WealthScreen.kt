@@ -22,6 +22,7 @@ import com.finpath.app.data.remote.WealthAllocationResponse
 import com.finpath.app.data.remote.WealthConfigRequest
 import com.finpath.app.ui.navigation.Screen
 import com.finpath.app.ui.theme.*
+import com.finpath.app.ui.components.WealthBarChart
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import io.github.jan.supabase.auth.auth
@@ -86,10 +87,10 @@ fun WealthScreen(navController: NavController) {
                         Icon(Icons.Default.AutoGraph, contentDescription = "Refresh wealth")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface900, titleContentColor = White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface950, titleContentColor = White)
             )
         },
-        containerColor = Surface900
+        containerColor = Surface950
     ) { padding ->
         Column(
             modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
@@ -97,10 +98,25 @@ fun WealthScreen(navController: NavController) {
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Surface800)
+                colors = CardDefaults.cardColors(containerColor = Surface900)
+            ) {
+                Column(Modifier.padding(20.dp)) {
+                    Text("Asset Allocation", fontWeight = FontWeight.Bold, color = White)
+                    Spacer(Modifier.height(16.dp))
+                    WealthBarChart(
+                        emergency = allocation?.emergencyFund ?: 0.0,
+                        fd = allocation?.fdSavings ?: 0.0,
+                        dynamic = allocation?.dynamicSaving ?: 0.0
+                    )
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Surface900)
             ) {
                 Box(
-                    modifier = Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Indigo700, Surface800))).padding(20.dp)
+                    modifier = Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Indigo700, Surface900))).padding(20.dp)
                 ) {
                     Column {
                         Text("Emergency Fund (5%)", style = MaterialTheme.typography.labelLarge, color = OnSurfaceMut)
@@ -113,7 +129,7 @@ fun WealthScreen(navController: NavController) {
             }
 
             // FD Savings (Manual)
-            Card(colors = CardDefaults.cardColors(containerColor = Surface800)) {
+            Card(colors = CardDefaults.cardColors(containerColor = Surface900)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("FD Savings (Manual)", fontWeight = FontWeight.SemiBold, color = White)
                     
@@ -143,7 +159,7 @@ fun WealthScreen(navController: NavController) {
             }
 
             // Dynamic Investments
-            Card(colors = CardDefaults.cardColors(containerColor = Surface800)) {
+            Card(colors = CardDefaults.cardColors(containerColor = Surface900)) {
                 Column(Modifier.padding(16.dp)) {
                     Text("Dynamic Investments", fontWeight = FontWeight.SemiBold, color = White)
                     Text("₹${"%.2f".format(allocation?.dynamicSaving ?: 0.0)}", style = MaterialTheme.typography.titleLarge, color = Emerald500)
