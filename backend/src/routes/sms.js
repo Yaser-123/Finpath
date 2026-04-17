@@ -49,6 +49,39 @@ function hasFinancialHint(text) {
   return hints.some(h => lower.includes(h));
 }
 
+function extractHeuristicTransaction(smsText) {
+  const text = (smsText || '').replace(/\s+/g, ' ').trim();
+  if (!text) return null;
+
+  const debitHints = ['debited', 'spent', 'paid', 'purchase', 'sent', 'dr'];
+  const creditHints = ['credited', 'received', 'deposited', 'refund', 'cr'];
+
+  const lower = text.toLowerCase();
+  const type = debitHints.some(h => lower.includes(h))
+    ? 'debit'
+    : (creditHints.some(h => lower.includes(h)) ? 'credit' : null);
+
+  const amountMatch = text.match(/(?:inr|rs\.?|₹)\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i)
+    || text.match(/(?:amount|amt)\s*(?:is|:)?\s*([0-9][0-9,]*(?:\.\d{1,2})?)/i);
+
+  const amount = amountMatch ? Number(String(amountMatch[1]).replace(/,/g, '')) : null;
+  if (!amount || !type) return null;
+
+  const merchantMatch = text.match(/(?:to|at|from)\s+([A-Za-z0-9&._\- ]{2,40}?)(?:\.|,| on | via |\sUTR|\sRef|$)/i);
+  const merchantName = merchantMatch?.[1]?.trim() || 'Unknown';
+
+  const refMatch = text.match(/(?:utr|ref(?:erence)?|txn(?:\s*id)?)[:\s-]*([A-Za-z0-9\-]{6,})/i);
+  const referenceNumber = refMatch?.[1] || null;
+
+  return {
+    amount,
+    type,
+    merchant_name: merchantName,
+    reference_number: referenceNumber,
+    date: new Date().toISOString(),
+  };
+}
+
 /**
  * POST /api/v1/sms/parse
  * Body: { sms_text: string, sender: string }
@@ -77,10 +110,14 @@ If this is not a financial transaction SMS, respond: {"error":"not_financial"}.
 SMS: ${sms_text}`;
 
   let extracted;
-  try {
-    extracted = await generateContent(prompt, '', true);
-  } catch (err) {
-    return res.status(500).json({ error: 'Gemini extraction failed', detail: err.message });
+  extracted = extractHeuristicTransaction(sms_text);
+
+  if (!extracted) {
+    try {
+      extracted = await generateContent(prompt, '', true);
+    } catch (err) {
+      return res.status(200).json({ skipped: true, reason: 'extraction_failed', detail: err.message });
+    }
   }
 
   if (extracted.error === 'not_financial') {
@@ -94,24 +131,40 @@ SMS: ${sms_text}`;
   // Auto-categorise if Gemini didn't
   const category = extracted.category || autoCategory(extracted.merchant_name || sms_text);
 
-  const { data, error } = await supabase
+  const baseInsert = {
+    user_id:          req.user.id,
+    source:           'sms',
+    type:             extracted.type,
+    amount:           extracted.amount,
+    merchant_name:    extracted.merchant_name || 'Unknown',
+    category,
+    transaction_date: extracted.date || new Date().toISOString(),
+  };
+
+  const fullInsert = {
+    ...baseInsert,
+    raw_sms: sms_text,
+    reference_number: extracted.reference_number || null,
+  };
+
+  let data;
+  let error;
+
+  ({ data, error } = await supabase
     .from('transactions')
-    .insert({
-      user_id:          req.user.id,
-      source:           'sms',
-      type:             extracted.type,
-      amount:           extracted.amount,
-      merchant_name:    extracted.merchant_name || 'Unknown',
-      category,
-      raw_sms:          sms_text,
-      reference_number: extracted.reference_number || null,
-      transaction_date: extracted.date || new Date().toISOString(),
-    })
+    .insert(fullInsert)
     .select()
-    .single();
+    .single());
+
+  if (error && /raw_sms|reference_number/i.test(error.message || '')) {
+    ({ data, error } = await supabase
+      .from('transactions')
+      .insert(baseInsert)
+      .select()
+      .single());
+  }
 
   if (error) {
-    // Handle uniqueness constraint violations as a 'skipped' message instead of a 500 error
     if (error.code === '23505') {
       return res.status(200).json({ skipped: true, reason: 'duplicate transaction' });
     }
