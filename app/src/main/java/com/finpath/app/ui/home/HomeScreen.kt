@@ -226,9 +226,6 @@ fun HomeScreen(navController: NavController) {
                     IconButton(onClick = { scope.launch { syncSmsHistory() } }) {
                         Icon(Icons.Default.Refresh, "Sync History")
                     }
-                    IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
-                        Text(dashboardData?.tier?.take(1)?.uppercase() ?: "B")
-                    }
                 }
             )
         },
@@ -384,6 +381,7 @@ fun HomeScreen(navController: NavController) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(bottom = 16.dp)
                         .clickable { navController.navigate(Screen.Quiz.route) },
                     colors = CardDefaults.cardColors(containerColor = Surface900)
                 ) {
@@ -393,10 +391,10 @@ fun HomeScreen(navController: NavController) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text("Knowledge Quiz", fontWeight = FontWeight.SemiBold, color = White)
-                            Text("Earn coins & upgrade tier", style = MaterialTheme.typography.bodySmall, color = OnSurfaceMut)
+                            Text("Financial Literacy Quiz", fontWeight = FontWeight.SemiBold, color = White)
+                            Text("Test your knowledge and learn", style = MaterialTheme.typography.bodySmall, color = OnSurfaceMut)
                         }
-                        Text("🪙 ${dashboardData?.coins ?: 0}", fontWeight = FontWeight.Bold, color = Amber500)
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Indigo500)
                     }
                 }
             }
