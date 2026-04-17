@@ -46,43 +46,63 @@ Current Date: ${new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 
  * Run a multi-turn agent loop with tool calling.
  */
 async function runAgentChat({ userId, history, message, tools, executeTool, systemInstruction }) {
-  const model = getModel(process.env.GEMINI_MODEL, tools);
-  
-  // Transform history into Gemini format
-  const contents = history.map(h => ({
-    role: h.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: h.content }]
-  }));
+  let lastError;
 
-  const chat = model.startChat({
-    history: contents,
-    systemInstruction: { text: systemInstruction }
-  });
+  for (const modelName of DEFAULT_MODELS) {
+    try {
+      const model = getModel(modelName, tools);
+      
+      // Transform history into Gemini format
+      const contents = (history || []).map(h => ({
+        role: h.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: h.content }]
+      }));
 
-  let result = await chat.sendMessage(message);
-  let response = result.response;
+      const chat = model.startChat({
+        history: contents,
+        systemInstruction: { parts: [{ text: systemInstruction }] }
+      });
 
-  // Maximum 5 iterations of tool calling to prevent infinite loops
-  for (let i = 0; i < 5; i++) {
-    const calls = response.functionCalls();
-    if (!calls || calls.length === 0) break;
+      let result = await chat.sendMessage(message);
+      let response = result.response;
 
-    const toolResponses = await Promise.all(calls.map(async (call) => {
-      console.log(`[agent] Executing tool: ${call.name}`, call.args);
-      const output = await executeTool(userId, call.name, call.args);
-      return {
-        functionResponse: {
-          name: call.name,
-          response: { content: output }
-        }
-      };
-    }));
+      // Maximum 5 iterations of tool calling to prevent infinite loops
+      for (let i = 0; i < 5; i++) {
+        const calls = response.functionCalls();
+        if (!calls || calls.length === 0) break;
 
-    result = await chat.sendMessage(toolResponses);
-    response = result.response;
+        const toolResponses = await Promise.all(calls.map(async (call) => {
+          console.log(`[agent] model ${modelName} executing tool: ${call.name}`, call.args);
+          try {
+            const output = await executeTool(userId, call.name, call.args);
+            return {
+              functionResponse: {
+                name: call.name,
+                response: { content: output }
+              }
+            };
+          } catch (tErr) {
+            return {
+              functionResponse: {
+                name: call.name,
+                response: { content: { error: tErr.message } }
+              }
+            };
+          }
+        }));
+
+        result = await chat.sendMessage(toolResponses);
+        response = result.response;
+      }
+
+      return response.text().trim();
+    } catch (err) {
+      lastError = err;
+      console.warn(`[agent] model ${modelName} failed: ${err.message}`);
+    }
   }
 
-  return response.text().trim();
+  throw new Error(lastError?.message || 'Agent failed on all models');
 }
 
 /**
