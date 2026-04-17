@@ -249,6 +249,7 @@ fun HomeScreen(navController: NavController) {
         ) {
             Column(
                 modifier = Modifier
+                    .padding(padding)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
