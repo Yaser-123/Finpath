@@ -10,7 +10,6 @@ import com.finpath.app.ui.auth.SignUpScreen
 import com.finpath.app.ui.auth.SplashScreen
 import com.finpath.app.ui.chat.ChatScreen
 import com.finpath.app.ui.game.QuizScreen
-import com.finpath.app.ui.game.TierScreen
 import com.finpath.app.ui.goals.CreateGoalScreen
 import com.finpath.app.ui.goals.GoalDetailScreen
 import com.finpath.app.ui.goals.GoalsScreen
@@ -43,7 +42,6 @@ fun FinPathNavGraph(navController: NavHostController) {
         composable(Screen.Wealth.route)         { WealthScreen(navController) }
         composable(Screen.Investments.route)    { InvestmentsScreen(navController) }
         composable(Screen.Quiz.route)           { QuizScreen(navController) }
-        composable(Screen.Tier.route)           { TierScreen(navController) }
         composable(Screen.Settings.route)       { SettingsScreen(navController) }
     }
 }
