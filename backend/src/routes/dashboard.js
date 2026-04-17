@@ -21,6 +21,7 @@ router.get('/', authenticate, async (req, res) => {
   // Run all queries in parallel
   const [
     { data: txThisMonth },
+    { data: recentTxForTrend },
     { data: goals },
     { data: profile },
     { data: wealthThisMonth },
