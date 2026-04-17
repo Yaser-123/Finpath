@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const { authenticate } = require('../middleware/auth');
 const { generateContent } = require('../lib/gemini');
 const { supabase } = require('../lib/supabase');
@@ -23,6 +24,18 @@ const CATEGORY_KEYWORDS = {
   education:  ['udemy', 'coursera', 'byju', 'unacademy', 'college', 'school', 'tuition', 'fees'],
   finance:    ['emi', 'loan', 'insurance', 'mutual fund', 'fd', 'rd', 'sip', 'credit card'],
 };
+
+const ALLOWED_CATEGORIES = new Set([
+  'food', 'transport', 'utilities', 'shopping', 'health',
+  'entertainment', 'education', 'finance'
+]);
+
+const smsParseLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1200,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function autoCategory(text) {
   const lower = (text || '').toLowerCase();
@@ -82,11 +95,25 @@ function extractHeuristicTransaction(smsText) {
   };
 }
 
+function sanitizeMerchantName(name) {
+  const merchant = (name || '').trim();
+  if (!merchant) return null;
+  if (/^(unknown|n\/?a|null|none)$/i.test(merchant)) return null;
+  if (/stop\s*execution|do\s*not\s*reply|otp|password/i.test(merchant)) return null;
+  return merchant;
+}
+
+function sanitizeCategory(category) {
+  const normalized = (category || '').toLowerCase().trim();
+  if (ALLOWED_CATEGORIES.has(normalized)) return normalized;
+  return 'other';
+}
+
 /**
  * POST /api/v1/sms/parse
  * Body: { sms_text: string, sender: string }
  */
-router.post('/parse', authenticate, async (req, res) => {
+router.post('/parse', smsParseLimiter, authenticate, async (req, res) => {
   const { sms_text, sender } = req.body;
   const trustedSender = isTrustedSender(sender);
   const financialHint = hasFinancialHint(sms_text);
@@ -128,15 +155,22 @@ SMS: ${sms_text}`;
     return res.status(422).json({ error: 'Could not extract transaction details', raw: extracted });
   }
 
-  // Auto-categorise if Gemini didn't
-  const category = extracted.category || autoCategory(extracted.merchant_name || sms_text);
+  const merchantName = sanitizeMerchantName(extracted.merchant_name);
+  const category = sanitizeCategory(extracted.category || autoCategory(extracted.merchant_name || sms_text));
+
+  if (!merchantName) {
+    return res.status(200).json({ skipped: true, reason: 'unclean merchant data' });
+  }
+  if (category === 'other') {
+    return res.status(200).json({ skipped: true, reason: 'unclean category data' });
+  }
 
   const baseInsert = {
     user_id:          req.user.id,
     source:           'sms',
     type:             extracted.type,
     amount:           extracted.amount,
-    merchant_name:    extracted.merchant_name || 'Unknown',
+    merchant_name:    merchantName,
     category,
     transaction_date: extracted.date || new Date().toISOString(),
   };

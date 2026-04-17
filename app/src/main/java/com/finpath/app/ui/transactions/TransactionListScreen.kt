@@ -19,6 +19,7 @@ import com.finpath.app.data.remote.TransactionItem
 import com.finpath.app.ui.theme.*
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -27,6 +28,7 @@ import java.util.Locale
 fun TransactionListScreen(navController: NavController) {
     var transactions by remember { mutableStateOf<List<TransactionItem>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -38,8 +40,10 @@ fun TransactionListScreen(navController: NavController) {
                     val response = ApiClient.api.getTransactions(auth)
                     transactions = response.data
                 }
+            } catch (e: HttpException) {
+                errorMessage = "Failed to load history (${e.code()}). Please refresh again."
             } catch (e: Exception) {
-                // handle
+                errorMessage = e.message ?: "Failed to load transaction history"
             } finally {
                 loading = false
             }
@@ -63,6 +67,10 @@ fun TransactionListScreen(navController: NavController) {
         if (loading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
+            }
+        } else if (errorMessage != null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(errorMessage!!, color = OnSurfaceMut)
             }
         } else if (transactions.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

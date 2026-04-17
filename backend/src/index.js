@@ -19,8 +19,15 @@ app.use(cors());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '1mb' }));
 
-// Global rate limiter (100 req / 15 min per IP)
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+// Global rate limiter. Exclude SMS parse flood traffic from this bucket,
+// otherwise sync bursts throttle dashboard/history requests.
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/api/v1/sms/parse',
+});
 app.use(limiter);
 
 // ─── Health ───────────────────────────────────────────────────────────────────
