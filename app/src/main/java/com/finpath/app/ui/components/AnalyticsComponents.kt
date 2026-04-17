@@ -23,12 +23,11 @@ import com.finpath.app.ui.theme.*
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
-import com.patrykandpatrick.vico.compose.cartesian.fullWidth
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineSpec
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.common.shader.toDynamicShader
-import com.patrykandpatrick.vico.core.cartesian.HorizontalLayout
+import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.common.shader.DynamicShader
@@ -51,12 +50,11 @@ fun SpendingTrendChart(data: List<DailySpend>, modifier: Modifier = Modifier) {
     CartesianChartHost(
         chart = rememberCartesianChart(
             rememberLineCartesianLayer(),
-            startAxis = rememberStartAxis(),
-            bottomAxis = rememberBottomAxis()
+            startAxis = VerticalAxis.rememberStart(),
+            bottomAxis = HorizontalAxis.rememberBottom()
         ),
         modelProducer = modelProducer,
-        modifier = modifier.height(120.dp),
-        horizontalLayout = HorizontalLayout.FullWidth
+        modifier = modifier.height(120.dp)
     )
 }
 
