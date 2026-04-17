@@ -12,9 +12,14 @@ const DEFAULT_MODELS = [
 /**
  * Get a Gemini model instance.
  * @param {string} [modelName] - Override the default model name.
+ * @param {object[]} [tools] - Optional tool definitions.
  */
-function getModel(modelName) {
-  return genAI.getGenerativeModel({ model: modelName || process.env.GEMINI_MODEL });
+function getModel(modelName, tools = []) {
+  const config = { model: modelName || process.env.GEMINI_MODEL };
+  if (tools.length > 0) {
+    config.tools = [{ functionDeclarations: tools }];
+  }
+  return genAI.getGenerativeModel(config);
 }
 
 /**
@@ -24,10 +29,60 @@ function getModel(modelName) {
 function buildSystemInstruction(userContext = {}) {
   const { monthly_income = 0, net_cash_flow = 0, goals = [], occupation = 'salaried' } = userContext;
   return `You are FinPath AI, a personal finance assistant for Indian users.
-User context: monthly income ₹${monthly_income}, net cash flow ₹${net_cash_flow}, occupation: ${occupation}, active goals: ${goals.length}.
-Be direct, honest, and specific to the Indian financial context (INR, NSE/BSE, Indian banks, Indian gig platforms).
-Never give fake hope — if a goal is not achievable in the given timeframe, say so clearly and suggest a realistic alternative.
-Always respond in English. For monetary values always use ₹ symbol.`;
+User Financial Snapshot:
+- Monthly Income: ₹${monthly_income}
+- Net Cash Flow: ₹${net_cash_flow}
+- Occupation: ${occupation}
+- Active Goals: ${goals.length}
+
+You have access to REAL financial tools to query and update the user's data. 
+Be direct, honest, and specific to the Indian context (INR, NSE/BSE).
+If a user asks to change a value, log an expense, or list their spending, use your tools first then summarize what you did.
+Always respond in English. For monetary values always use ₹ symbol.
+Current Date: ${new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+}
+
+/**
+ * Run a multi-turn agent loop with tool calling.
+ */
+async function runAgentChat({ userId, history, message, tools, executeTool, systemInstruction }) {
+  const model = getModel(process.env.GEMINI_MODEL, tools);
+  
+  // Transform history into Gemini format
+  const contents = history.map(h => ({
+    role: h.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: h.content }]
+  }));
+
+  const chat = model.startChat({
+    history: contents,
+    systemInstruction: { text: systemInstruction }
+  });
+
+  let result = await chat.sendMessage(message);
+  let response = result.response;
+
+  // Maximum 5 iterations of tool calling to prevent infinite loops
+  for (let i = 0; i < 5; i++) {
+    const calls = response.functionCalls();
+    if (!calls || calls.length === 0) break;
+
+    const toolResponses = await Promise.all(calls.map(async (call) => {
+      console.log(`[agent] Executing tool: ${call.name}`, call.args);
+      const output = await executeTool(userId, call.name, call.args);
+      return {
+        functionResponse: {
+          name: call.name,
+          response: { content: output }
+        }
+      };
+    }));
+
+    result = await chat.sendMessage(toolResponses);
+    response = result.response;
+  }
+
+  return response.text().trim();
 }
 
 /**
@@ -87,4 +142,4 @@ async function generateContent(prompt, systemInstruction = '', parseJSON = false
   return text;
 }
 
-module.exports = { getModel, buildSystemInstruction, generateContent };
+module.exports = { getModel, buildSystemInstruction, generateContent, runAgentChat };
