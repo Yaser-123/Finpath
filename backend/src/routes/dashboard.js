@@ -61,9 +61,9 @@ router.get('/', authenticate, async (req, res) => {
     total_expenses_this_month: totalExpenses,
     goals_summary:             goalsSummary,
     wealth_this_month: {
-      ring_fenced: wealthThisMonth?.data?.ring_fenced_amount ?? ringFenced,
-      static:      wealthThisMonth?.data?.static_saving ?? 0,
-      dynamic:     wealthThisMonth?.data?.dynamic_saving ?? 0,
+      ring_fenced: wealthThisMonth?.ring_fenced_amount || (profile?.monthly_income * 0.05) || 0,
+      static:      wealthThisMonth?.static_saving || 0,
+      dynamic:     wealthThisMonth?.dynamic_saving || 0,
     },
     spending_by_category: Object.entries(spendingByCategory).map(([category, amount]) => ({ category, amount })),
     tier:  profile?.data?.tier ?? 'bronze',

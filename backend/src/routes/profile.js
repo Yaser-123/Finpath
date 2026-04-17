@@ -3,7 +3,7 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { supabase } = require('../lib/supabase');
 
-router.get('/', authenticate, async (req, res) => {
+router.get(['/', ''], authenticate, async (req, res) => {
   const { data, error } = await supabase
     .from('profiles')
     .select('id, full_name, monthly_income, occupation, wealth_ring_fence_pct, tier, coins')
@@ -14,7 +14,8 @@ router.get('/', authenticate, async (req, res) => {
   return res.json(data || {});
 });
 
-router.put('/', authenticate, async (req, res) => {
+router.put(['/', ''], authenticate, async (req, res) => {
+  console.log(`[profile] PUT request from user ${req.user.id}, body:`, req.body);
   const updates = {};
   if (req.body.monthly_income !== undefined) {
     const income = Number(req.body.monthly_income);
@@ -45,7 +46,10 @@ router.put('/', authenticate, async (req, res) => {
     .select('id, full_name, monthly_income, occupation, wealth_ring_fence_pct, tier, coins')
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    console.error('[profile] update error:', error);
+    return res.status(500).json({ error: error.message });
+  }
   return res.json(data);
 });
 

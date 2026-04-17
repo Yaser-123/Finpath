@@ -57,7 +57,10 @@ app.use(`${BASE}/profile`,      require('./routes/profile'));
 app.use(`${BASE}/user`,         require('./routes/game'));
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
-app.use((req, res) => res.status(404).json({ error: `Route ${req.method} ${req.path} not found` }));
+app.use((req, res) => {
+  console.warn(`[404] ${req.method} ${req.path} - Not Found`);
+  res.status(404).json({ error: `Route ${req.method} ${req.path} not found` });
+});
 
 // ─── Error handler ────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {

@@ -80,9 +80,9 @@ data class GoalSummary(
 )
 
 data class WealthSummary(
-    @SerializedName("ring_fenced") val ringFenced: Double,
-    @SerializedName("static")      val static: Double,
-    @SerializedName("dynamic")     val dynamic: Double
+    @SerializedName("ring_fenced") val emergencyFund: Double,
+    @SerializedName("static")      val fdSavings: Double,
+    @SerializedName("dynamic")     val dynamicSavings: Double
 )
 
 data class CategorySpend(
@@ -155,11 +155,16 @@ data class InvestmentSuggestionResponse(
 data class WealthAllocationResponse(
     @SerializedName("month") val month: String? = null,
     @SerializedName("total_income") val totalIncome: Double? = null,
-    @SerializedName("ring_fenced_amount") val ringFencedAmount: Double? = null,
-    @SerializedName("static_saving") val staticSaving: Double? = null,
+    @SerializedName("emergency_fund") val emergencyFund: Double? = null,
+    @SerializedName("fd_savings") val fdSavings: Double? = null,
     @SerializedName("dynamic_saving") val dynamicSaving: Double? = null,
     @SerializedName("notes") val notes: String? = null,
     @SerializedName("message") val message: String? = null
+)
+
+data class WealthConfigRequest(
+    @SerializedName("fd_amount") val fdAmount: Double,
+    @SerializedName("total_income") val totalIncome: Double? = null
 )
 
 data class ProfileResponse(
@@ -254,6 +259,12 @@ interface FinPathApi {
     @GET("api/v1/wealth/summary")
     suspend fun getWealthSummary(
         @Header("Authorization") auth: String
+    ): WealthAllocationResponse
+
+    @POST("api/v1/wealth/configure")
+    suspend fun configureWealth(
+        @Header("Authorization") auth: String,
+        @Body request: WealthConfigRequest
     ): WealthAllocationResponse
 
     @GET("api/v1/profile")

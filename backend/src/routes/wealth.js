@@ -10,32 +10,49 @@ router.get('/summary', authenticate, async (req, res) => {
   const now = new Date();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  const { data } = await supabase
-    .from('wealth_allocations')
-    .select('*')
-    .eq('user_id', req.user.id)
-    .eq('month', month)
-    .single();
+  // Fetch allocation and profile in parallel
+  const [allocationRes, profileRes] = await Promise.all([
+    supabase.from('wealth_allocations').select('*').eq('user_id', req.user.id).eq('month', month).single(),
+    supabase.from('profiles').select('monthly_income').eq('id', req.user.id).single()
+  ]);
 
-  return res.json(data || { month, message: 'No allocation recorded for this month yet.' });
+  const allocation = allocationRes.data || {};
+  const income = Number(profileRes.data?.monthly_income || 0);
+  
+  // Emergency Fund is strictly 5% of monthly income from profile
+  const emergencyFund = income * 0.05;
+
+  return res.json({
+    month,
+    total_income: income,
+    emergency_fund: emergencyFund,
+    fd_savings: allocation.static_saving || 0,
+    dynamic_saving: allocation.dynamic_saving || 0,
+    notes: allocation.notes || "Emergency Fund is 5% of your income. FD settings can be updated manually."
+  });
 });
 
 /**
  * POST /api/v1/wealth/configure
- * Body: { ring_fence_pct, static_saving_pct, total_income }
+ * Body: { fd_amount, total_income }
  */
 router.post('/configure', authenticate, async (req, res) => {
-  const { ring_fence_pct, total_income } = req.body;
+  const { fd_amount, total_income } = req.body;
   const now = new Date();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  const ringFenced     = (total_income || 0) * ((ring_fence_pct || 20) / 100);
-  const remaining      = (total_income || 0) - ringFenced;
-  const staticSaving   = remaining * 0.4;
-  const dynamicSaving  = remaining * 0.6;
+  // Income source priority: body -> profile
+  let income = Number(total_income);
+  if (!income) {
+    const { data: profile } = await supabase.from('profiles').select('monthly_income').eq('id', req.user.id).single();
+    income = Number(profile?.monthly_income || 0);
+  }
 
-  // Upsert profile ring-fence setting
-  await supabase.from('profiles').update({ wealth_ring_fence_pct: ring_fence_pct || 20 }).eq('id', req.user.id);
+  const emergencyFund = income * 0.05;
+  const fdSavings     = Number(fd_amount || 0);
+  
+  // Remaining goes to dynamic (simplistic model)
+  const dynamicSaving = Math.max(0, income - emergencyFund - fdSavings);
 
   // Upsert allocation record
   const { data, error } = await supabase
@@ -43,17 +60,22 @@ router.post('/configure', authenticate, async (req, res) => {
     .upsert({
       user_id:           req.user.id,
       month,
-      total_income:      total_income || 0,
-      ring_fenced_amount: ringFenced,
-      static_saving:     staticSaving,
+      total_income:      income,
+      ring_fenced_amount: emergencyFund,
+      static_saving:     fdSavings,
       dynamic_saving:    dynamicSaving,
-      notes:             `⚠️ Cash savings lose value to inflation (~6% per year in India). Consider moving static savings into liquid funds or FDs.`,
+      notes:             `✅ Emergency Fund (5%) & FD Savings updated. Static cash loses value; FD is safer but consider dynamic growth.`,
     }, { onConflict: 'user_id,month' })
     .select()
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  return res.json(data);
+  
+  return res.json({
+    ...data,
+    emergency_fund: emergencyFund, // Map table fields to new concept names for the response
+    fd_savings: fdSavings
+  });
 });
 
 /**
