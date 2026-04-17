@@ -28,77 +28,82 @@ async function getAvgMonthlyCashFlow(userId, months = 3) {
 }
 
 /**
- * Core feasibility analyser.
- * CRITICAL: Never returns is_feasible=true unless math confirms it.
- *
- * @param {object} params
- * @param {string} params.userId
- * @param {number} params.targetAmount
- * @param {number} params.timeframeMonths
- * @param {number} params.ringFencePct  - % of income to ring-fence (default 20)
- * @param {object} params.userProfile   - { monthly_income, occupation, full_name }
+ * Logic-based feasibility analyser.
+ * Uses deterministic math to save AI credits and prevent data-skew errors.
  */
 async function analyseFeasibility({ userId, targetAmount, timeframeMonths, ringFencePct = 20, userProfile = {} }) {
-  // 1. Get avg monthly cash flow from last 3 months of transactions
+  // 1. Get avg monthly cash flow
   const avgMonthlyNetFlow = await getAvgMonthlyCashFlow(userId, 3);
+  const declaredIncome = parseFloat(userProfile.monthly_income || 0);
 
-  // 2. Fall back to declared income if no transactions yet
-  const monthlyIncome = userProfile.monthly_income || 0;
-  const baseFlow = avgMonthlyNetFlow > 0 ? avgMonthlyNetFlow : monthlyIncome;
-
-  // 3. Remove ring-fenced wealth portion first
-  const ringFenceAmount      = baseFlow * (ringFencePct / 100);
-  const availableForGoals    = baseFlow - ringFenceAmount;
-
-  // 4. How much can be saved over the timeframe?
-  const maxSaveable = availableForGoals * timeframeMonths;
-
-  const isFeasible = maxSaveable >= targetAmount;
-
-  // 5. Realistic timeframe if not feasible
-  const realisticMonths = availableForGoals > 0
-    ? Math.ceil(targetAmount / availableForGoals)
-    : null;
-
-  // 6. Gemini generates the honest message + step plan
-  const sysInstruct = buildSystemInstruction({
-    monthly_income: monthlyIncome,
-    net_cash_flow:  baseFlow,
-    occupation:     userProfile.occupation,
-  });
-
-  let geminiOutput = { feasibility_note: '', steps: [] };
-  try {
-    const prompt = isFeasible
-      ? `The user wants to save ₹${targetAmount} in ${timeframeMonths} months.
-After ring-fencing ${ringFencePct}% for generational wealth, their available savings capacity is ₹${availableForGoals.toFixed(0)}/month.
-This IS feasible (max saveable: ₹${maxSaveable.toFixed(0)}).
-Generate a step-by-step savings plan as JSON: {"feasibility_note":"...","steps":[{"title":"...","action":"...","monthly_amount":0}]}
-Make the note motivating but realistic. Include 4-6 concrete steps.`
-      : `The user wants to save ₹${targetAmount} in ${timeframeMonths} months.
-After ring-fencing ${ringFencePct}% for generational wealth, their available savings capacity is ₹${availableForGoals.toFixed(0)}/month.
-This is NOT feasible (max saveable in ${timeframeMonths} months: ₹${maxSaveable.toFixed(0)}).
-Realistic timeframe: ${realisticMonths || 'unknown'} months.
-Generate an honest, compassionate note and alternative plan as JSON: {"feasibility_note":"...","steps":[{"title":"...","action":"...","monthly_amount":0}]}
-Be honest — never say the original goal is achievable. Suggest concrete modifications (extend timeframe, reduce target, or increase income).`;
-
-    geminiOutput = await generateContent(prompt, sysInstruct, true);
-  } catch (err) {
-    geminiOutput.feasibility_note = isFeasible
-      ? `You can save ₹${targetAmount} in ${timeframeMonths} months with ₹${availableForGoals.toFixed(0)}/month.`
-      : `This goal requires ₹${targetAmount} but you can only save ₹${maxSaveable.toFixed(0)} in ${timeframeMonths} months. Consider ${realisticMonths || 'a longer'} months instead.`;
+  // 2. Sanity check: If skewed data (avg flow > 1.5x declared income), trust declared income.
+  let baseFlow = declaredIncome;
+  if (avgMonthlyNetFlow > 0 && avgMonthlyNetFlow <= (declaredIncome * 1.5)) {
+    baseFlow = Math.max(avgMonthlyNetFlow, declaredIncome);
   }
+
+  // 3. Calculate actual available savings (assuming ~40% for essential expenses if income is low, or basic 50/30/20 rule)
+  // available = baseFlow * (1 - ringFence% - 50% expenses)
+  const expenseRatio = 0.5; // 50% for living expenses
+  const ringFenceRatio = ringFencePct / 100;
+  const savingsCapacityPerMonth = baseFlow * (1 - ringFenceRatio - expenseRatio);
+
+  // 4. Deterministic Feasibility
+  const requiredMonthlySavings = targetAmount / timeframeMonths;
+  const isFeasible = savingsCapacityPerMonth >= requiredMonthlySavings;
+  const realisticMonths = savingsCapacityPerMonth > 0 
+    ? Math.ceil(targetAmount / savingsCapacityPerMonth) 
+    : 0;
+
+  let note = '';
+  let steps = [];
+
+  // 5. Logical Timing Suggestions
+  if (isFeasible) {
+    if (requiredMonthlySavings < (savingsCapacityPerMonth * 0.5) && timeframeMonths > 3) {
+      // Goal is very easy, suggest shorter timeframe
+      const fastMonths = Math.max(1, Math.ceil(targetAmount / (savingsCapacityPerMonth * 0.8)));
+      if (fastMonths < timeframeMonths) {
+        note = `Your goal of ₹${targetAmount.toLocaleString('en-IN')} is very much on track! Since you can save up to ₹${Math.round(savingsCapacityPerMonth).toLocaleString('en-IN')}/month, you could actually achieve this in ${fastMonths} months instead of ${timeframeMonths}.`;
+      } else {
+        note = `Great news! You can comfortably save ₹${targetAmount.toLocaleString('en-IN')} in ${timeframeMonths} months.`;
+      }
+    } else {
+      note = `Your goal of ₹${targetAmount.toLocaleString('en-IN')} in ${timeframeMonths} months is feasible. You'll need to set aside about ₹${Math.round(requiredMonthlySavings).toLocaleString('en-IN')} monthly.`;
+    }
+
+    steps = [
+      { title: "Automate Savings", action: `Move ₹${Math.round(requiredMonthlySavings)} to your FD/Savings account at the start of every month.`, monthly_amount: Math.round(requiredMonthlySavings) },
+      { title: "Track Expenses", action: "Review your 'Food' and 'Shopping' categories weekly to ensure you stay within your budget.", monthly_amount: 0 },
+      { title: "Wealth Protection", action: `Keep the 5% Emergency Fund (₹${Math.round(baseFlow * 0.05)}) untouched for true emergencies.`, monthly_amount: 0 }
+    ];
+  } else {
+    if (savingsCapacityPerMonth <= 0) {
+      note = `Currently, your income (₹${declaredIncome}) doesn't leave enough room for this ₹${targetAmount.toLocaleString('en-IN')} goal after accounting for expenses. Try increasing your income or reducing fixed costs.`;
+    } else {
+      note = `Saving ₹${targetAmount.toLocaleString('en-IN')} in ${timeframeMonths} months is quite tight for your current income. A more realistic timeframe would be ${realisticMonths} months, saving ₹${Math.round(savingsCapacityPerMonth)} per month.`;
+    }
+
+    steps = [
+      { title: "Extend Timeframe", action: `Change your target to ${realisticMonths} months to make the monthly contribution manageable.`, monthly_amount: Math.round(savingsCapacityPerMonth) },
+      { title: "Income Boost", action: "Consider a side hustle to increase your monthly investable surplus by ₹10,000.", monthly_amount: 0 },
+      { title: "Reduce Target", action: `Scale down the goal to ₹${Math.round(savingsCapacityPerMonth * timeframeMonths)} to hit it in your original 8-month window.`, monthly_amount: 0 }
+    ];
+  }
+
+  // 6. Optional: Use Gemini only to "Polished" the note if needed, but for now we use the deterministic one to save credits.
+  // We'll skip Gemini entirely to satisfy "dont use Gemini to evaluate the Timing" and save credits.
 
   return {
     is_feasible:                isFeasible,
-    feasibility_note:           geminiOutput.feasibility_note,
-    suggested_timeframe_months: isFeasible ? null : realisticMonths,
-    steps:                      geminiOutput.steps || [],
+    feasibility_note:           note,
+    suggested_timeframe_months: isFeasible ? (note.includes('instead of') ? Math.ceil(targetAmount / (savingsCapacityPerMonth * 0.8)) : null) : realisticMonths,
+    steps:                      steps,
     _debug: {
-      avg_monthly_net_flow:  baseFlow,
-      ring_fence_amount:     ringFenceAmount,
-      available_for_goals:   availableForGoals,
-      max_saveable:          maxSaveable,
+      avg_monthly_net_flow:  avgMonthlyNetFlow,
+      base_flow_used:        baseFlow,
+      savings_capacity:      savingsCapacityPerMonth,
+      required_savings:      requiredMonthlySavings,
     }
   };
 }
