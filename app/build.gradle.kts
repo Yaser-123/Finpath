@@ -100,9 +100,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
 
     // Charts
-    implementation("com.patrykandpatrick.vico:compose:2.0.0-beta.2")
-    implementation("com.patrykandpatrick.vico:compose-m3:2.0.0-beta.2")
-    implementation("com.patrykandpatrick.vico:core:2.0.0-beta.2")
+    implementation("com.patrykandpatrick.vico:compose-m3:1.15.0")
+    implementation("com.patrykandpatrick.vico:core:1.15.0")
 
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.7.0")

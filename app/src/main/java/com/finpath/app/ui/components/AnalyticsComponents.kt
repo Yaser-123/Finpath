@@ -20,41 +20,31 @@ import androidx.compose.ui.unit.sp
 import com.finpath.app.data.remote.DailySpend
 import com.finpath.app.data.remote.CategorySpend
 import com.finpath.app.ui.theme.*
-import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.common.shader.toDynamicShader
-import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
-import com.patrykandpatrick.vico.core.common.shader.DynamicShader
+import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
+import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
+import com.patrykandpatrick.vico.compose.chart.Chart
+import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
+import com.patrykandpatrick.vico.core.entry.entryOf
 
 @Composable
 fun SpendingTrendChart(data: List<DailySpend>, modifier: Modifier = Modifier) {
-    val modelProducer = remember { CartesianChartModelProducer() }
+    val modelProducer = remember { ChartEntryModelProducer() }
     
-    val xLabels = data.map { it.date.split("-").last() }
-    val yValues = data.map { it.amount }
+    val yValues = data.map { it.amount.toFloat() }
 
     LaunchedEffect(data) {
-        modelProducer.runTransaction {
-            lineSeries {
-                series(yValues)
-            }
+        if (yValues.isNotEmpty()) {
+            modelProducer.setEntries(yValues.mapIndexed { index, value -> entryOf(index, value) })
         }
     }
 
-    CartesianChartHost(
-        chart = rememberCartesianChart(
-            rememberLineCartesianLayer(),
-            startAxis = VerticalAxis.rememberStart(),
-            bottomAxis = HorizontalAxis.rememberBottom()
-        ),
-        modelProducer = modelProducer,
-        modifier = modifier.height(120.dp)
+    Chart(
+        chart = lineChart(),
+        chartModelProducer = modelProducer,
+        modifier = modifier.height(120.dp),
+        startAxis = rememberStartAxis(),
+        bottomAxis = rememberBottomAxis(),
     )
 }
 
