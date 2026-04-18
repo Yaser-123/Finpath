@@ -2,76 +2,80 @@
 
 <img src="https://raw.githubusercontent.com/Yaser-123/SMS-READER/main/assets/logointro_fast.gif" width="70%" />
 
-# 💳 FinPath
-### The Personal Finance OS for the AI Era
+# 💳 FinPath: AI-Powered Behavioral Wealth Architect
+### The Personal CFO for the AI Era
 
-> 🏆 **Built for [ai4impact Hackathon 2026](https://github.com/Yaser-123/Finpath)**  
+> 🏆 **Smart India Hackathon (SIH) 2026 Proposal**  
 > 👥 **Team: CodeVizards** — *Lords Institute of Engineering and Technology*
 
 [![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
 [![Gemini AI](https://img.shields.io/badge/Gemini%20AI-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://deepmind.google/technologies/gemini/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-[📲 Download APK](#) • [🔗 LinkedIn](https://www.linkedin.com/in/mohamedyaser08/) • [📧 Contact](mailto:1ammar.yaser@gmail.com)
-
-</div>
-
----
-
-## 🎯 The Vision
-
-In a world of fragmented bank accounts, hidden subscriptions, and complex digital payments, keeping track of money is harder than ever. **FinPath** is a decentralized, AI-driven financial intelligence layer that lives on your phone. 
-
-It autonomously transforms your existing bank SMS data into a structured financial roadmap—providing real-time insights, personalized AI advising, and actionable wealth-building tools without ever requiring your bank credentials.
-
----
-
-## 💡 Our Solution
-
-FinPath bridges the gap between raw financial activity and strategic wealth management using a 3-layer intelligence engine:
-
-1.  **Autonomous Ingestion**: A zero-friction SMS sync engine that parses bank notifications into structured ledger entries.
-2.  **AI Insight Engine**: Google Gemini 2.5 Flash analyzes your spending patterns to provide personalized advice and anomaly detection.
-3.  **Educational Core**: Integrated financial literacy modules and quizzes to build long-term generational wealth.
-
----
-
-## ✨ Key Features
-
-| Feature | Description |
-|---|---|
-| 📡 **Autonomous SMS Sync** | Scans and parses bank SMS (Axis, etc.) to track income/expenses automatically with 99% accuracy. |
-| 🤖 **AI Financial Advisor** | Chat with Gemini to ask questions like "How much did I spend on food last week?" or "Can I afford a new laptop?" |
-| 📊 **Premium Analytics** | Beautiful Vico-powered charts for spending trends, category breakdowns, and net-cash flow. |
-| 🎮 **Financial Literacy Quiz** | Interactive quizzes with visual results (Donut Charts) and detailed review sections for learning. |
-| 🏆 **Goal Tracking** | Track "Generational Wealth" steps including Emergency Funds and personalized savings goals. |
-| 🛡️ **Security-First** | Powered by Supabase with Row Level Security (RLS) and end-to-end encrypted sessions. |
-
----
-
-## 🖼 Screenshots & Demo
-
-<div align="center">
-
-| Dashboard | AI Chat | Data Sync | Finance Quiz |
-|:---:|:---:|:---:|:---:|
-| <img src="https://via.placeholder.com/300x600?text=Dashboard+UI" height="400"> | <img src="https://via.placeholder.com/300x600?text=AI+Advisor" height="400"> | <img src="https://via.placeholder.com/300x600?text=Sync+Engine" height="400"> | <img src="https://via.placeholder.com/300x600?text=Quiz+Results" height="400"> |
+[📲 Download APK](https://drive.google.com/file/d/1rd4QTPZqYWYhKsdaLC6bi3yuviojxxqi/view?usp=sharing) • [🔗 LinkedIn](https://www.linkedin.com/in/mohamedyaser08/) • [📧 Contact](mailto:1ammar.yaser@gmail.com)
 
 </div>
 
 ---
 
-## ⚙️ Tech Stack
+## 1. About Team & Problem Statement
 
-| Layer | Technology |
-|---|---|
-| **Android CLI/UI** | Kotlin, Jetpack Compose, Vico Charts, Lottie Animations |
-| **Backend API** | Node.js, Express (REST) |
-| **Database/Auth** | Supabase (PostgreSQL, RLS, JWT Auth) |
-| **AI Orchestration** | Google Gemini 2.5 Flash-Lite |
-| **Networking** | Retrofit, OkHttp, Supabase-KT |
+*   **Problem Statement Title**: FinPath: AI-Powered Behavioral Wealth Architect
+*   **Vision**: An autonomous "Personal CFO" that manages the gap between "Daily Spending" and "Generational Wealth."
+*   **Theme/SDG**: Fintech / Smart Automation (SDG 8: Decent Work and Economic Growth)
+*   **Category**: Software
+*   **Team Name**: CodeVizards
+*   **College Name**: Lords Institute of Engineering and Technology
+*   **Team Lead**: T Mohamed Yaser
+
+---
+
+## 2. Technical Approach
+
+### Technologies Used
+*   **Frontend**: Kotlin, Jetpack Compose, Vico Charts (Android)
+*   **Backend**: Node.js, Express, Render (Cloud Deployment)
+*   **Database & Auth**: Supabase (PostgreSQL with Row Level Security)
+*   **AI Engine**: Google Gemini 2.5 Flash-Lite (Behavioral Analysis)
+*   **External Analysis**: Streamlit (Advanced Portfolio Modeling)
+
+### Methodology & Process
+1.  **Autonomous Ingestion**: App captures bank SMS via local background listeners.
+2.  **Intelligence Layer**: Backend extracts merchant and amount data using Gemini LLM.
+3.  **Behavioral Architecture**: The system categorizes transactions and maps them against "Generational Wealth" goals.
+4.  **Portfolio Integration**: Direct links to specialized analysis engines for Stocks and Crypto.
+
+### IDEA to Prototype Steps
+*   **Phase 1**: Developed the SMS parsing regex and local database schema.
+*   **Phase 2**: Integrated Gemini 2.5 for natural language transaction categorization.
+*   **Phase 3**: Built the Jetpack Compose dashboard and portfolio analysis modules.
+
+---
+
+## 3. Feasibility and Viability
+
+### Key Features
+*   🚀 **Zero Manual Entry**: No need to type transactions; the app reads your bank notifications.
+*   📈 **Stock & Crypto Portfolio Analysis**: Deep-dive modeling via integrated Streamlit engines.
+    *   [Stock Predictastock](https://predictastock.streamlit.app/)
+    *   [Crypto Hive](https://cryptohive.streamlit.app/)
+*   🤖 **AI Advisor**: Real-time chat for financial planning and anomaly detection.
+*   🛡️ **Privacy First**: No bank credentials or sensitive account numbers ever leave the phone.
+
+### Challenges & Strategies
+*   **Challenge**: Varied SMS formats from different banks.
+*   **Strategy**: Using Gemini AI to generalize parsing instead of rigid regex patterns.
+*   **Challenge**: Maintaining real-time sync on low-end devices.
+*   **Strategy**: Lightweight Node.js backend hosted on Render for fast global response times.
+
+---
+
+## 4. Impact and Benefits
+
+*   **Social Impact**: Democratizes financial advising, providing premium "Wealth Manager" features to the underserved.
+*   **Economic Impact**: Reduces impulsive spending by visualizing the "Opportunity Cost" of daily expenses.
+*   **Novelty**: Unlike competitors, FinPath requires **zero bank integrations** (API/Plaid), making it compatible with 100% of Indian banks.
 
 ---
 
@@ -84,48 +88,28 @@ graph TD
     C -->|Natural Language| D[Gemini AI Engine]
     D -->|Structured JSON| C
     C -->|Upsert Transaction| E[(Supabase DB)]
-    B -->|Chat Request| C
-    C -->|Contextual Analysis| D
+    B -->|Stock Analysis| F[Predictastock Engine]
+    B -->|Crypto Analysis| G[Cryptohive Engine]
     B -->|Sync State| E
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🖼 Screenshots
 
-### 1. Backend Setup (Node.js)
-```bash
-cd backend
-npm install
-# Configure your .env
-SUPABASE_URL=your_url
-SUPABASE_SERVICE_ROLE_KEY=your_key
-GEMINI_API_KEY=your_gemini_key
-npm start
-```
+<div align="center">
 
-### 2. Android App Setup
-1. Open the project in **Android Studio Ladybug or later**.
-2. Update the `BASE_URL` in your network configuration to point to your backend IP.
-3. Build and Run on a physical device (to allow SMS access).
-4. **Important**: Grant SMS Read permissions when prompted to enable autonomous syncing.
+| Dashboard | AI Chat | Data Sync | Finance Quiz |
+|:---:|:---:|:---:|:---:|
+| <img src="https://via.placeholder.com/300x600?text=Dashboard+UI" height="400"> | <img src="https://via.placeholder.com/300x600?text=AI+Advisor" height="400"> | <img src="https://via.placeholder.com/300x600?text=Sync+Engine" height="400"> | <img src="https://via.placeholder.com/300x600?text=Quiz+Results" height="400"> |
+
+</div>
 
 ---
 
-## 🫂 The Team: CodeVizards
+## 🚀 Research and References
+*   [Google Gemini API Documentation](https://ai.google.dev/)
+*   [Supabase Row Level Security Guide](https://supabase.com/docs/guides/auth/row-level-security)
+*   [Jetpack Compose Design Patterns](https://developer.android.com/jetpack/compose)
 
-**Institution**: Lords Institute of Engineering and Technology
-
-| Role | Name | Contact |
-|---|---|---|
-| **Team Lead** | T Mohamed Yaser | [LinkedIn](https://www.linkedin.com/in/mohamedyaser08/) |
-| **Member** | Mohammed Sabeehuddin | [Email](mailto:sabeehuddin05@gmail.com) |
-
----
-
-## 🏆 Hackathon Details (ai4impact)
-- **Problem Statement**: Financial AI for impact-driven personal wealth management.
-- **Team ID**: 1ammar.yaser
-- **Submission Date**: 18 Apr 2026
-
-Built with ❤️ by **CodeVizards** — *Making finance accessible, one algorithm at a time.*
+Built with ❤️ by **CodeVizards** — *Architecting generational wealth.*
